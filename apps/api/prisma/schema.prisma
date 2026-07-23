@@ -1,0 +1,101 @@
+// schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String?
+  createdAt DateTime  @default(now())
+  clients   Client[]
+  projects  Project[]
+}
+
+model Client {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  name      String
+  email     String?
+  phone     String?
+  company   String?
+  createdAt DateTime  @default(now())
+  projects  Project[]
+
+  @@index([userId])
+}
+
+enum ProjectStatus {
+  active
+  completed
+  on_hold
+}
+
+model Project {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id])
+  clientId  String?
+  client    Client?       @relation(fields: [clientId], references: [id])
+  name      String
+  status    ProjectStatus @default(active)
+  startDate DateTime?
+  endDate   DateTime?
+  archived  Boolean       @default(false)
+  createdAt DateTime      @default(now())
+  income    Income[]
+  expenses  Expense[]
+
+  @@index([userId, archived])
+  @@index([clientId])
+}
+
+enum IncomeStatus {
+  pending
+  paid
+  overdue
+}
+
+model Income {
+  id          String       @id @default(cuid())
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id])
+  amount      Decimal      @db.Decimal(10, 2)
+  description String?
+  status      IncomeStatus @default(pending)
+  date        DateTime
+  createdAt   DateTime     @default(now())
+
+  @@index([projectId, date])
+}
+
+enum ExpenseCategory {
+  hosting
+  domain
+  api_usage
+  software_subscription
+  freelancer
+  marketing
+  miscellaneous
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  projectId   String
+  project     Project         @relation(fields: [projectId], references: [id])
+  amount      Decimal         @db.Decimal(10, 2)
+  category    ExpenseCategory
+  description String?
+  date        DateTime
+  createdAt   DateTime        @default(now())
+
+  @@index([projectId, date])
+  @@index([category])
+}
