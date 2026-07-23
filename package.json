@@ -1,0 +1,5 @@
+{
+  "name": "project-finance-dashboard",
+  "private": true,
+  "workspaces": ["apps/*"]
+}
