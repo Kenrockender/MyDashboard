@@ -1,6 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ReportsService } from './reports.service';
-import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
+import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 
 @Controller('reports')
 export class ReportsController {

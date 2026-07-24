@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ExpenseCategory } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 
@@ -13,7 +14,15 @@ export class ExpensesService {
 
   async create(userId: string, projectId: string, dto: CreateExpenseDto) {
     await this.assertProjectOwnership(userId, projectId);
-    return this.prisma.expense.create({ data: { ...dto, projectId } });
+    return this.prisma.expense.create({
+      data: {
+        projectId,
+        amount: dto.amount,
+        category: dto.category as ExpenseCategory,
+        description: dto.description,
+        date: new Date(dto.date),
+      },
+    });
   }
 
   async findAll(userId: string, projectId: string) {
@@ -24,7 +33,15 @@ export class ExpensesService {
   async update(userId: string, id: string, dto: Partial<CreateExpenseDto>) {
     const expense = await this.prisma.expense.findFirst({ where: { id, project: { userId } } });
     if (!expense) throw new NotFoundException('Expense not found');
-    return this.prisma.expense.update({ where: { id }, data: dto });
+    return this.prisma.expense.update({
+      where: { id },
+      data: {
+        amount: dto.amount,
+        category: dto.category as ExpenseCategory | undefined,
+        description: dto.description,
+        date: dto.date ? new Date(dto.date) : undefined,
+      },
+    });
   }
 
   async remove(userId: string, id: string) {

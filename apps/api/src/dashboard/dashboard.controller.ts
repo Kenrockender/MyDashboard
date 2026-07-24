@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
-import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
+import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 
 @Controller('dashboard')
 export class DashboardController {
