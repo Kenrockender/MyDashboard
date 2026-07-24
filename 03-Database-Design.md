@@ -99,7 +99,13 @@ Firestore requires a composite index for any query that combines more than one e
 
 Single-field equality queries (e.g. reports/dashboard's `where(userId).get()` with no `orderBy`) don't need a composite index — Firestore auto-indexes every field individually.
 
-**Definitions exist, deployment doesn't yet.** All six index definitions above are written out in `/firestore.indexes.json` (repo root), referenced from `/firebase.json`. Writing the file doesn't create the indexes in the real Firestore project by itself — whoever has access to that Firebase project still needs to either run `firebase deploy --only firestore:indexes` (after `firebase login` and setting the project, e.g. via `.firebaserc` or `firebase use <project-id>` — no `.firebaserc` exists in this repo since the project ID wasn't available when this was written), or open each filtered list endpoint once against production and click the console link Firestore prints in its `FAILED_PRECONDITION` error. Do this before relying on `/projects?status=`, `/projects?clientId=`, or any project/income/expense list endpoint in production.
+**Deployed.** All six index definitions above live in `/firestore.indexes.json` (repo root) and have been deployed to the project's actual database via `firebase deploy --only firestore:indexes` — confirmed with `firebase firestore:indexes --database default`.
+
+One non-obvious catch hit while deploying this: the project's Firestore database is an **Enterprise-edition database literally named `default`** (matches `FIREBASE_DATABASE_ID=default` in `.env`), not the **Standard-edition `(default)`** database the Firebase CLI assumes by default. `firebase deploy --only firestore:indexes` with a plain `{ "firestore": { "indexes": "..." } }` in `firebase.json` tries to *create* a new `(default)` Standard database (which doesn't exist here) and fails with a billing-required error, rather than deploying against the existing `default` Enterprise database. The fix is the multi-database array form in `/firebase.json`:
+```json
+{ "firestore": [{ "database": "default", "indexes": "firestore.indexes.json" }] }
+```
+If this project's database is ever recreated as a Standard `(default)` database instead, this config needs to change back to the plain object form.
 
 ## 6. Schema Evolution
 
