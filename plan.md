@@ -899,14 +899,14 @@ git commit -m "feat: add project list and detail UI with computed totals"
 ## Post-MVP Hardening & Ops (added after "what's still missing?" review)
 
 - [x] **API security headers** — `helmet()` applied globally in `create-app.ts`.
-- [x] **CORS locked down** — `enableCors()` now reads an allowlist from `CORS_ORIGINS` (comma-separated) instead of allowing every origin; defaults to `http://localhost:3000` for dev. Set `CORS_ORIGINS` to the deployed web URL in Vercel.
+- [x] **CORS locked down** — `enableCors()` now reads an allowlist from `CORS_ORIGINS` (comma-separated) instead of allowing every origin; defaults to `http://localhost:3000` for dev. **Set in Vercel:** `CORS_ORIGINS` is configured on the `mydashboard-api` project (Production) with the three stable web aliases (`https://web-three-zeta-25.vercel.app`, `https://mydashboard-web-kenrockenders-projects.vercel.app`, `https://mydashboard-web-git-master-kenrockenders-projects.vercel.app`). Verified live: allowed origin gets `Access-Control-Allow-Origin`, `evil.example.com` gets none. **When a custom domain is added to the web app, append it to `CORS_ORIGINS` and redeploy the API** — env changes only take effect on a new deployment (e.g. `cd apps/api && vercel env rm CORS_ORIGINS production && printf '<new comma-separated list>' | vercel env add CORS_ORIGINS production && vercel redeploy <latest api prod url>`).
 - [x] **Rate limiting** — `@nestjs/throttler` registered as a global guard (120 req/min/IP). Note: in-memory store is per-serverless-instance on Vercel, so it's a floor, not a hard global cap.
 - [x] **Centralized error handling + logging** — `AllExceptionsFilter` (`common/all-exceptions.filter.ts`) turns every unhandled error into a consistent `{ error }` JSON envelope, logs 5xx with stack traces and 4xx as warnings, and never leaks internal error detail. This is the single hook point for wiring an external error tracker (Sentry) later — forward `exception` from there once a `SENTRY_DSN` is available.
 - [x] **JSON health endpoint** — `GET /api/health` returns `{ status, uptime, timestamp }` (public), suitable for uptime monitors. Covered by unit + e2e tests.
 - [x] **Firestore backup** — `npm run backup` (in `apps/api`) exports every collection to a timestamped JSON file under `backups/` (gitignored). Schedule via cron/CI for regular off-site copies.
 - [ ] **External error tracker (Sentry) not wired** — the filter hook exists but no DSN is configured; needs a Sentry account + `SENTRY_DSN` env var.
 - [ ] **Dashboard performance still unmeasured** (see NFR above) — unchanged; needs a real measurement against production data volume.
-- [ ] **Custom domain** — still on `*.vercel.app`.
+- [ ] **Custom domain** — still on `*.vercel.app`. When added, remember the CORS follow-up noted in the "CORS locked down" item above: append the new domain to `CORS_ORIGINS` on `mydashboard-api` and redeploy the API.
 
 ## Self-Review Notes
 
