@@ -5,294 +5,110 @@
 
 ---
 
+> **Implementation note:** this doc originally specified a PostgreSQL/Prisma relational schema. The build pivoted to **Firestore** (a NoSQL document database, accessed via the Firebase Admin SDK) during Phase 5/6. There is no `User` table — Firebase Auth is the user directory, and every document simply stores the Firebase Auth UID in a `userId` field. This doc now describes the actual Firestore data model in `apps/api/src/firebase/collections.ts` and the collection services (`clients.service.ts`, `projects.service.ts`, `income.service.ts`, `expenses.service.ts`).
+
 ## 1. Overview
 
-PostgreSQL via Prisma ORM. A single owner (`User`) has many `Project`s and `Client`s; each `Project` has many `Income` and `Expense` records. A `User` row exists from day one — even though the MVP only ever has one — so the schema needs no structural change for multi-user support later.
+Firestore, four top-level collections: `clients`, `projects`, `income`, `expenses`. There is no `users` collection — a user's identity is their Firebase Auth UID, stamped onto every document they own as `userId`. This means the schema already supports multi-user access control (every query filters by `userId`) without any structural change.
 
-## 2. Entity Relationship Diagram
+## 2. Collections & Relationships
 
 ```mermaid
-erDiagram
-    User ||--o{ Project : owns
-    User ||--o{ Client : owns
-    Client ||--o{ Project : "assigned to"
-    Project ||--o{ Income : has
-    Project ||--o{ Expense : has
-
-    User {
-        string id PK
-        string email
-        string name
-        datetime createdAt
-    }
-    Client {
-        string id PK
-        string userId FK
-        string name
-        string email
-        string phone
-        string company
-        datetime createdAt
-    }
-    Project {
-        string id PK
-        string userId FK
-        string clientId FK
-        string name
-        string status
-        datetime startDate
-        datetime endDate
-        boolean archived
-        datetime createdAt
-    }
-    Income {
-        string id PK
-        string projectId FK
-        decimal amount
-        string description
-        string status
-        datetime date
-        datetime createdAt
-    }
-    Expense {
-        string id PK
-        string projectId FK
-        decimal amount
-        string category
-        string description
-        datetime date
-        datetime createdAt
-    }
+flowchart LR
+    U[Firebase Auth UID]
+    U -- userId --> Clients[(clients)]
+    U -- userId --> Projects[(projects)]
+    U -- userId --> Income[(income)]
+    U -- userId --> Expenses[(expenses)]
+    Clients -- clientId --> Projects
+    Projects -- projectId --> Income
+    Projects -- projectId --> Expenses
 ```
 
-## 3. Table Definitions
+Firestore has no foreign keys or cascading deletes — every reference (`clientId`, `projectId`, `userId`) is just a plain string field, and ownership/existence checks happen in application code (e.g. `ProjectsService`'s `assertProjectOwnership` equivalent in `IncomeService`/`ExpensesService`).
 
-### 3.1 User
-| Column | Type | Constraints |
+## 3. Document Shapes
+
+### 3.1 `clients/{id}`
+| Field | Type | Notes |
 |---|---|---|
-| id | String (cuid) | PK |
-| email | String | Unique, not null |
-| name | String | Nullable |
-| createdAt | DateTime | Default now() |
+| id | string | Firestore document ID (auto-generated) |
+| userId | string | Firebase Auth UID of the owner |
+| name | string | Required |
+| email | string \| null | Optional |
+| phone | string \| null | Optional |
+| company | string \| null | Optional |
+| createdAt | Timestamp | Set on create |
 
-### 3.2 Client
-| Column | Type | Constraints |
+### 3.2 `projects/{id}`
+| Field | Type | Notes |
 |---|---|---|
-| id | String (cuid) | PK |
-| userId | String | FK → User.id, not null |
-| name | String | Not null |
-| email | String | Nullable |
-| phone | String | Nullable |
-| company | String | Nullable |
-| createdAt | DateTime | Default now() |
+| id | string | Firestore document ID |
+| userId | string | Firebase Auth UID of the owner |
+| clientId | string \| null | References `clients/{id}`, not enforced by the database |
+| name | string | Required |
+| status | `'active' \| 'completed' \| 'on_hold'` | Default `'active'` |
+| startDate | Timestamp \| null | Optional |
+| endDate | Timestamp \| null | Currently unused by any service |
+| archived | boolean | Default `false`; soft-delete flag (see §4) |
+| createdAt | Timestamp | Set on create |
 
-### 3.3 Project
-| Column | Type | Constraints |
+### 3.3 `income/{id}`
+| Field | Type | Notes |
 |---|---|---|
-| id | String (cuid) | PK |
-| userId | String | FK → User.id, not null |
-| clientId | String | FK → Client.id, nullable |
-| name | String | Not null |
-| status | Enum: `active`, `completed`, `on_hold` | Default `active` |
-| startDate | DateTime | Nullable |
-| endDate | DateTime | Nullable |
-| archived | Boolean | Default false |
-| createdAt | DateTime | Default now() |
+| id | string | Firestore document ID |
+| userId | string | Firebase Auth UID of the owner |
+| projectId | string | References `projects/{id}` |
+| amount | number | Must be > 0 (validated by `CreateIncomeDto`) |
+| description | string \| null | Optional |
+| status | `'pending' \| 'paid' \| 'overdue'` | Default `'pending'` |
+| date | Timestamp | Required |
+| createdAt | Timestamp | Set on create |
 
-### 3.4 Income
-| Column | Type | Constraints |
+### 3.4 `expenses/{id}`
+| Field | Type | Notes |
 |---|---|---|
-| id | String (cuid) | PK |
-| projectId | String | FK → Project.id, not null |
-| amount | Decimal(10,2) | Not null, > 0 |
-| description | String | Nullable |
-| status | Enum: `pending`, `paid`, `overdue` | Default `pending` |
-| date | DateTime | Not null |
-| createdAt | DateTime | Default now() |
+| id | string | Firestore document ID |
+| userId | string | Firebase Auth UID of the owner |
+| projectId | string | References `projects/{id}` |
+| amount | number | Must be > 0 (validated by `CreateExpenseDto`) |
+| category | `'hosting' \| 'domain' \| 'api_usage' \| 'software_subscription' \| 'freelancer' \| 'marketing' \| 'miscellaneous'` | Required |
+| description | string \| null | Optional |
+| date | Timestamp | Required |
+| createdAt | Timestamp | Set on create |
 
-### 3.5 Expense
-| Column | Type | Constraints |
+## 4. Relationships & Deletion Behavior
+
+- A `client` can have multiple `project`s; a `project` has at most one `client` (or none).
+- A `project` has many `income` and `expense` documents.
+- **There is no project delete endpoint at all** — only `POST /projects/:id/archive`, which sets `archived: true`. Income/expense history is never touched by archiving. This is stricter than the original "restrict delete while children exist" plan, and simpler: deletion just isn't exposed.
+- Income and expense records themselves *can* be deleted individually (`DELETE /income/:id`, `DELETE /expenses/:id`) — there's no equivalent soft-delete for those.
+
+## 5. Required Firestore Composite Indexes
+
+**⚠️ Unresolved as of this writing — there is no `firebase.json`/`firestore.indexes.json` in this repo, so these indexes have not been created anywhere.** Firestore requires a composite index for any query that combines more than one equality filter, or an equality filter with a different `orderBy` field. The following queries in the codebase need one:
+
+| Collection | Query (in code) | Composite index needed |
 |---|---|---|
-| id | String (cuid) | PK |
-| projectId | String | FK → Project.id, not null |
-| amount | Decimal(10,2) | Not null, > 0 |
-| category | Enum: `hosting`, `domain`, `api_usage`, `software_subscription`, `freelancer`, `marketing`, `miscellaneous` | Not null |
-| description | String | Nullable |
-| date | DateTime | Not null |
-| createdAt | DateTime | Default now() |
+| `projects` | `where(userId).where(archived).orderBy(createdAt desc)` (`ProjectsService.findAll`) | `userId` (asc), `archived` (asc), `createdAt` (desc) |
+| `projects` | same, plus `where(status)` or `where(clientId)` | Additional composite variants per filter combination actually used |
+| `income` | `where(projectId).orderBy(date desc)` (`IncomeService.findAll`) | `projectId` (asc), `date` (desc) |
+| `expenses` | `where(projectId).orderBy(date desc)` (`ExpensesService.findAll`) | `projectId` (asc), `date` (desc) |
 
-## 4. Relationships Summary
+Single-field equality queries (e.g. reports/dashboard's `where(userId).get()` with no `orderBy`) don't need a composite index — Firestore auto-indexes every field individually.
 
-- `User` 1—N `Client`, `User` 1—N `Project` (ownership; enables future multi-tenancy)
-- `Client` 1—N `Project` (a client can have multiple projects; a project has at most one client)
-- `Project` 1—N `Income`
-- `Project` 1—N `Expense`
-- Child deletes are guarded: deleting a `Project` is **restricted** while it has `Income`/`Expense` rows — use `archived` instead of a hard delete to preserve financial history (FR-1.3).
+**Before first production traffic:** run the app against the real Firestore project and exercise each filtered list endpoint. Firestore returns a `FAILED_PRECONDITION` error with a direct console link to create the missing index on first use — follow those links, or pre-create a `firestore.indexes.json` from the table above and deploy it with `firebase deploy --only firestore:indexes`.
 
-## 5. Indexes
+## 6. Schema Evolution
 
-| Table | Index | Reason |
-|---|---|---|
-| Project | `(userId, archived)` | Dashboard/list queries always filter by owner and archived state |
-| Project | `(clientId)` | Client detail page loads a client's projects |
-| Income | `(projectId, date)` | Project detail and monthly reports range-query by date |
-| Expense | `(projectId, date)` | Same as above |
-| Expense | `(category)` | Expense breakdown report groups by category |
+Firestore is schemaless — there is no migration step. Validation lives entirely at the API boundary (`class-validator` DTOs), not the database:
 
-## 6. Prisma Schema
+- Adding an optional field: update the relevant DTO/interface and service; existing documents simply lack the field until written.
+- Renaming or removing a field: requires either a one-off backfill script (write one, run it against the real project, delete it) or defensive reads (`doc.field ?? fallback`) if backfilling isn't practical — there's currently no backfill tooling in this repo, so treat this as a manual, ad-hoc operation if it comes up.
+- There is no seed script (`apps/api/prisma/seed.ts` was deleted along with Prisma). To get sample data into a fresh Firestore project, use the app itself — sign in, then create a client/project/income/expense through the UI or by calling the API directly.
 
-```prisma
-// schema.prisma
+## 7. Data Validation Rules
 
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-model User {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  name      String?
-  createdAt DateTime  @default(now())
-  clients   Client[]
-  projects  Project[]
-}
-
-model Client {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id])
-  name      String
-  email     String?
-  phone     String?
-  company   String?
-  createdAt DateTime  @default(now())
-  projects  Project[]
-
-  @@index([userId])
-}
-
-enum ProjectStatus {
-  active
-  completed
-  on_hold
-}
-
-model Project {
-  id        String        @id @default(cuid())
-  userId    String
-  user      User          @relation(fields: [userId], references: [id])
-  clientId  String?
-  client    Client?       @relation(fields: [clientId], references: [id])
-  name      String
-  status    ProjectStatus @default(active)
-  startDate DateTime?
-  endDate   DateTime?
-  archived  Boolean       @default(false)
-  createdAt DateTime      @default(now())
-  income    Income[]
-  expenses  Expense[]
-
-  @@index([userId, archived])
-  @@index([clientId])
-}
-
-enum IncomeStatus {
-  pending
-  paid
-  overdue
-}
-
-model Income {
-  id          String       @id @default(cuid())
-  projectId   String
-  project     Project      @relation(fields: [projectId], references: [id])
-  amount      Decimal      @db.Decimal(10, 2)
-  description String?
-  status      IncomeStatus @default(pending)
-  date        DateTime
-  createdAt   DateTime     @default(now())
-
-  @@index([projectId, date])
-}
-
-enum ExpenseCategory {
-  hosting
-  domain
-  api_usage
-  software_subscription
-  freelancer
-  marketing
-  miscellaneous
-}
-
-model Expense {
-  id          String          @id @default(cuid())
-  projectId   String
-  project     Project         @relation(fields: [projectId], references: [id])
-  amount      Decimal         @db.Decimal(10, 2)
-  category    ExpenseCategory
-  description String?
-  date        DateTime
-  createdAt   DateTime        @default(now())
-
-  @@index([projectId, date])
-  @@index([category])
-}
-```
-
-## 7. Migration Strategy
-
-- Use `prisma migrate dev` locally to generate migrations as the schema evolves.
-- Commit every migration file to version control — never edit a migration that's already been applied to production.
-- Apply migrations in production with `prisma migrate deploy` as an explicit deploy step (`07-Deployment-and-DevOps.md` §6).
-
-## 8. Data Validation Rules
-
-- `amount` on Income/Expense must be > 0 — validated at the API layer, not just documented here.
-- `Project.endDate`, if set, must be ≥ `startDate`.
-- A `Project` cannot be deleted while it has `Income` or `Expense` records — archive instead (enforced by Prisma's default `onDelete: Restrict`).
-
-## 9. Sample Seed Data
-
-```ts
-// prisma/seed.ts
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
-
-async function main() {
-  const user = await prisma.user.create({
-    data: { email: 'you@example.com', name: 'Solo Dev' },
-  });
-
-  const client = await prisma.client.create({
-    data: { userId: user.id, name: 'Acme Corp', email: 'billing@acme.com' },
-  });
-
-  const project = await prisma.project.create({
-    data: {
-      userId: user.id,
-      clientId: client.id,
-      name: 'Acme Website Redesign',
-      status: 'active',
-      startDate: new Date('2026-06-01'),
-    },
-  });
-
-  await prisma.income.create({
-    data: { projectId: project.id, amount: 2000, description: 'Down payment', status: 'paid', date: new Date('2026-06-01') },
-  });
-
-  await prisma.expense.create({
-    data: { projectId: project.id, amount: 20, category: 'domain', description: 'Domain renewal', date: new Date('2026-06-02') },
-  });
-
-  console.log('Seeded user id:', user.id);
-}
-
-main().finally(() => prisma.$disconnect());
-```
+- `amount` on Income/Expense must be > 0 — enforced by `@IsPositive()` on `CreateIncomeDto`/`CreateExpenseDto`, not by Firestore.
+- `status`/`category` enums are enforced by `@IsIn([...])` on the DTOs, not by Firestore (Firestore will happily store any string).
+- There is no `endDate >= startDate` check anywhere currently, despite `endDate` existing on the `Project` shape — it's unused.

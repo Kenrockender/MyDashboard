@@ -13,40 +13,39 @@ REST API served by the NestJS backend. All endpoints return JSON, require authen
 
 ```
 Local:      http://localhost:3001/api
-Production: https://api.<yourdomain>.com/api
+Production: whatever the apps/api Vercel project's URL is, set as
+            NEXT_PUBLIC_API_URL on the apps/web Vercel project — no custom
+            api. subdomain is configured yet
 ```
 
 No version prefix for MVP (single consumer — the first-party frontend). Introduce `/api/v1` only if a public API becomes a real requirement.
 
 ## 3. Authentication
 
-All endpoints below (except `/health`) require a valid Clerk session token:
+All endpoints below except the root health check (`GET /` — marked `@Public()`) require a valid **Firebase Auth ID token**:
 
 ```
-Authorization: Bearer <clerk_session_token>
+Authorization: Bearer <firebase_id_token>
 ```
 
-The API resolves `userId` from the verified token — it is never accepted as a request parameter or body field.
+The frontend obtains this from `firebase/auth`'s `getIdToken()` after Google sign-in (`apps/web/src/lib/api-client.ts`). The backend verifies it via `firebase-admin/auth` (`FirebaseAuthGuard`) and resolves `userId` from the verified token's `uid` — it is never accepted as a request parameter or body field. A 401 from the backend triggers the frontend to sign the user out and redirect to `/sign-in` (`apps/web/src/lib/api-client.ts`).
 
 ## 4. Common Response Format
 
 **Success:**
 ```json
 {
-  "data": {},
-  "meta": { "page": 1, "pageSize": 20, "total": 42 }
+  "data": {}
 }
 ```
-`meta` is only present on paginated list endpoints.
+There is no `meta`/pagination envelope implemented — all list endpoints currently return the full result set (see §11).
 
-**Error:**
+**Error:** NestJS's default exception shape (no custom exception filter exists yet):
 ```json
 {
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "amount must be greater than 0",
-    "details": [{ "field": "amount", "issue": "must be > 0" }]
-  }
+  "statusCode": 400,
+  "message": ["amount must be a positive number"],
+  "error": "Bad Request"
 }
 ```
 
@@ -55,17 +54,16 @@ The API resolves `userId` from the verified token — it is never accepted as a 
 |---|---|
 | 200 | Success |
 | 201 | Created |
-| 400 | Validation error |
-| 401 | Missing/invalid auth |
-| 403 | Authenticated but not authorized for this resource |
-| 404 | Resource not found |
+| 400 | Validation error (class-validator DTO rejection) |
+| 401 | Missing/invalid Firebase ID token |
+| 404 | Resource not found — also returned (with `data: null`, not a 404 status) by detail endpoints when the resource exists but belongs to a different user, to avoid leaking existence |
 | 500 | Unexpected server error |
 
 ## 5. Projects
 
 ### `GET /projects`
 List projects for the authenticated user.
-Query params: `status`, `clientId`, `search`, `archived` (default `false`), `page`, `pageSize`
+Query params: `status`, `clientId`, `search` (case-insensitive substring match on `name`, filtered in-memory since Firestore has no `contains` operator). `archived` always defaults to `false` server-side and is not currently exposed as a query param.
 
 ### `POST /projects`
 ```json
@@ -101,10 +99,12 @@ Archives a project (soft-delete). Does not delete income/expense history.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/clients` | List, supports `?search=` |
-| POST | `/clients` | Create |
+| GET | `/clients` | List, supports `?search=` (case-insensitive substring on `name`, in-memory) |
+| POST | `/clients` | Create — `{ name, email?, phone?, company? }` |
 | GET | `/clients/:id` | Detail, includes associated projects |
-| PATCH | `/clients/:id` | Update |
+| PATCH | `/clients/:id` | Update — same fields as POST, all optional |
+
+There is no `DELETE /clients/:id`.
 
 ## 7. Income
 
@@ -177,9 +177,9 @@ Archives a project (soft-delete). Does not delete income/expense history.
 
 ## 11. Pagination, Filtering, Sorting Conventions
 
-- List endpoints accept `page` (default 1) and `pageSize` (default 20, max 100).
-- Sorting: `?sort=createdAt:desc` (field:direction).
-- Filtering uses plain query params matching the field name (`?status=active`).
+- **No pagination is implemented.** Every list endpoint returns its full result set; `page`/`pageSize` are not accepted anywhere. Fine at current data volume, but worth revisiting before this is used with years of history.
+- **No client-controlled sorting.** Ordering is fixed per endpoint in the service (e.g. projects by `createdAt desc`, income/expenses by `date desc`) — there's no `?sort=` param.
+- Filtering uses plain query params matching the field name (`?status=active`), plus `search` where noted above.
 
 ## 12. Rate Limiting
 

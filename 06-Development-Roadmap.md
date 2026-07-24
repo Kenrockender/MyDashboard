@@ -12,7 +12,7 @@ This roadmap sequences the MVP into phases ordered by dependency: data foundatio
 ## 2. Phases
 
 ### Phase 0 — Foundations (~2-4 days)
-Repo setup, Next.js + NestJS scaffolding, Prisma connected to Neon, base layout/navigation shell, CI pipeline skeleton.
+Repo setup, Next.js + NestJS scaffolding, Firestore connected via the Firebase Admin SDK (pivoted from the original Prisma/Neon plan), base layout/navigation shell, CI pipeline skeleton.
 
 ### Phase 1 — Projects & Clients (~1 week)
 Client CRUD (API + UI). Project CRUD (API + UI), including client assignment and archive. Search/filter on both.
@@ -27,10 +27,10 @@ Income CRUD scoped to a project. Expense CRUD scoped to a project, with category
 Monthly summary, profitability, expense breakdown, revenue breakdown — endpoints and screens.
 
 ### Phase 5 — Auth & Hardening (~3-5 days)
-Wire in Clerk if deferred from Phase 0. Input validation everywhere, error-handling polish, responsive QA pass.
+Wire in Firebase Auth (Google sign-in) if deferred from Phase 0. Input validation everywhere, error-handling polish, responsive QA pass.
 
 ### Phase 6 — Deploy (~2-3 days)
-Production Vercel/Railway/Neon setup, environment variables, first deploy. See `07-Deployment-and-DevOps.md`.
+Production Vercel setup for both apps (frontend + backend-as-serverless-function), environment variables, first deploy. See `07-Deployment-and-DevOps.md`. **Still outstanding:** creating the Firestore composite indexes the list queries need (`03-Database-Design.md` §5) and confirming a live production deploy actually exists.
 
 ### Phase 7+ — Post-MVP
 Pull from `08-Future-Features.md` based on actual usage once the MVP is live.
@@ -50,7 +50,7 @@ Pull from `08-Future-Features.md` based on actual usage once the MVP is live.
 - Phase 2 depends on Phase 1 (needs projects to attach income/expenses to).
 - Phase 3 depends on Phase 2 (dashboard aggregates income/expense data).
 - Phase 4 depends on Phase 3's aggregation logic (reports reuse the same calculations, sliced differently).
-- Phase 5 (auth) can run in parallel with Phases 1-2 if Clerk is wired in from the start — recommended, since retrofitting auth onto unscoped queries later is exactly the kind of rework the architecture is trying to avoid (`02-System-Architecture.md` §9).
+- Phase 5 (auth) can run in parallel with Phases 1-2 if Firebase Auth is wired in from the start — recommended, since retrofitting auth onto unscoped queries later is exactly the kind of rework the architecture is trying to avoid (`02-System-Architecture.md` §9). This is in fact what happened here: auth landed alongside the Firestore pivot rather than strictly after Phases 1-4.
 
 ## 5. Suggested Order of Attack
 

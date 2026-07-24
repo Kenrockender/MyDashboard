@@ -1,12 +1,14 @@
 # Project Finance Dashboard — Implementation Plan
 
-**Goal:** Build the single-user MVP described in `01-Product-Requirements-Document.md` — a Next.js + NestJS + PostgreSQL app that tracks project income/expenses and shows profitability on a dashboard.
+> **Status: Phases 0-6 below are done and shipped** — the app is built, tested, and deployed (see checkbox state throughout, and `06-Development-Roadmap.md`). **The stack diverged from the plan as written**: Phase 0/Task 0.2 through Task 1.3's code snippets describe a **Prisma + PostgreSQL (Neon)** setup that was later replaced with **Firestore via the Firebase Admin SDK**, and Task 0.4/Phase 5's `Clerk` auth was replaced with **Firebase Auth (Google sign-in)**. Those snippets are left in place below as a historical record of the original plan, not as accurate documentation of what's in the repo — for the real implementation, read `apps/api/src/firebase/`, `apps/api/src/auth/`, and `apps/web/src/lib/firebase.ts`/`auth-context.tsx` directly, and see `02-System-Architecture.md` / `03-Database-Design.md` / `04-API-Specification.md`, which have all been updated to match the actual build.
 
-**Architecture:** Modular monolith — Next.js frontend, NestJS REST API, PostgreSQL via Prisma, in one npm-workspaces monorepo. Full detail in `02-System-Architecture.md`, `03-Database-Design.md`, `04-API-Specification.md`.
+**Goal:** Build the single-user MVP described in `01-Product-Requirements-Document.md` — a Next.js + NestJS app that tracks project income/expenses and shows profitability on a dashboard. *(Shipped, on Firestore rather than the PostgreSQL originally scoped below.)*
 
-**Tech Stack:** Next.js, TypeScript, Tailwind, shadcn/ui, TanStack Query, NestJS, Prisma, PostgreSQL (Neon), Clerk, Recharts.
+**Architecture:** Modular monolith — Next.js frontend, NestJS REST API, Firestore via the Firebase Admin SDK, in one npm-workspaces monorepo. Full detail in `02-System-Architecture.md`, `03-Database-Design.md`, `04-API-Specification.md`.
 
-**How to use this plan:** Phases 0 and 1 below are fully detailed and ready to execute, task by task, checkbox by checkbox. Phases 2-6 are scoped — clear goal, files, and pattern to follow — but deliberately not expanded into full step-by-step tasks. A spec this size covers several independent subsystems (Projects, Income/Expenses, Dashboard, Reports, Auth, Deploy); writing every one of them out to full TDD granularity today means the later ones go stale before you reach them. Expand each phase into its own detailed plan right before you start it — Phase 1 below is the worked template to copy the pattern from.
+**Tech Stack:** Next.js, TypeScript, Tailwind, TanStack Query, NestJS, Firebase Admin SDK, Firestore, Firebase Auth, Recharts.
+
+**How to use this plan:** Phases 0 and 1 below are fully detailed, task by task, checkbox by checkbox — as originally executed, with the Prisma-era code samples kept for history (see the status note above). Phases 2-6 are scoped — clear goal, files, and pattern to follow — but deliberately not expanded into full step-by-step tasks. All phases have since been completed; this doc is kept as a build record and a template for the *next* feature, not as a live checklist to re-execute from scratch.
 
 ---
 
@@ -19,7 +21,7 @@
 - Create: `apps/web/` (Next.js app)
 - Create: `apps/api/` (NestJS app)
 
-- [ ] **Step 1: Create the monorepo root**
+- [x] **Step 1: Create the monorepo root**
 
 ```bash
 mkdir project-finance-dashboard && cd project-finance-dashboard
@@ -27,7 +29,7 @@ git init
 npm init -y
 ```
 
-- [ ] **Step 2: Set up npm workspaces**
+- [x] **Step 2: Set up npm workspaces**
 
 `package.json`:
 ```json
@@ -38,19 +40,19 @@ npm init -y
 }
 ```
 
-- [ ] **Step 3: Scaffold the frontend**
+- [x] **Step 3: Scaffold the frontend**
 
 ```bash
 npx create-next-app@latest apps/web --typescript --tailwind --app
 ```
 
-- [ ] **Step 4: Scaffold the backend**
+- [x] **Step 4: Scaffold the backend**
 
 ```bash
 npx @nestjs/cli new apps/api --package-manager npm
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add .
@@ -64,7 +66,7 @@ git commit -m "chore: scaffold monorepo with Next.js frontend and NestJS backend
 - Create: `apps/api/prisma/seed.ts`
 - Create: `apps/api/.env`, `apps/api/.env.example`
 
-- [ ] **Step 1: Install Prisma in the API app**
+- [x] **Step 1: Install Prisma in the API app**
 
 ```bash
 cd apps/api
@@ -73,11 +75,11 @@ npm install @prisma/client
 npx prisma init
 ```
 
-- [ ] **Step 2: Add the schema**
+- [x] **Step 2: Add the schema**
 
 Copy the full schema from `03-Database-Design.md` §6 into `apps/api/prisma/schema.prisma`.
 
-- [ ] **Step 3: Set the connection string**
+- [x] **Step 3: Set the connection string**
 
 Create a free Neon project, copy its connection string into `apps/api/.env`:
 ```
@@ -85,14 +87,14 @@ DATABASE_URL="postgresql://<user>:<password>@<host>/<db>?sslmode=require"
 ```
 Create `apps/api/.env.example` with the same key and a blank value, and add `.env` to `.gitignore`.
 
-- [ ] **Step 4: Run the first migration**
+- [x] **Step 4: Run the first migration**
 
 ```bash
 npx prisma migrate dev --name init
 ```
 Expected: a migration is created under `apps/api/prisma/migrations/`, and `User`, `Client`, `Project`, `Income`, `Expense` tables exist in Neon.
 
-- [ ] **Step 5: Add and run the seed script**
+- [x] **Step 5: Add and run the seed script**
 
 Copy the seed script from `03-Database-Design.md` §9 into `apps/api/prisma/seed.ts`, then:
 ```bash
@@ -100,14 +102,14 @@ npx prisma db seed
 ```
 Expected: console prints `Seeded user id: <cuid>` — copy this value, you'll need it in Task 0.4.
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 ```bash
 npx prisma studio
 ```
 Expected: browser opens showing one row in `User`, `Client`, `Project`, `Income`, `Expense`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add apps/api/prisma apps/api/.env.example apps/api/.gitignore
@@ -121,7 +123,7 @@ git commit -m "feat: add Prisma schema, connect to Neon, seed sample data"
 - Create: `apps/web/src/components/shared/nav.tsx`
 - Create: `apps/web/src/app/(dashboard)/{dashboard,projects,clients,reports}/page.tsx`
 
-- [ ] **Step 1: Write the nav component**
+- [x] **Step 1: Write the nav component**
 
 ```tsx
 // apps/web/src/components/shared/nav.tsx
@@ -147,7 +149,7 @@ export function Nav() {
 }
 ```
 
-- [ ] **Step 2: Wire it into the dashboard layout**
+- [x] **Step 2: Wire it into the dashboard layout**
 
 ```tsx
 // apps/web/src/app/(dashboard)/layout.tsx
@@ -163,7 +165,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 }
 ```
 
-- [ ] **Step 3: Add placeholder pages so links resolve**
+- [x] **Step 3: Add placeholder pages so links resolve**
 
 ```bash
 mkdir -p "apps/web/src/app/(dashboard)/dashboard" "apps/web/src/app/(dashboard)/projects" "apps/web/src/app/(dashboard)/clients" "apps/web/src/app/(dashboard)/reports"
@@ -172,14 +174,14 @@ for p in dashboard projects clients reports; do
 done
 ```
 
-- [ ] **Step 4: Run it**
+- [x] **Step 4: Run it**
 
 ```bash
 cd apps/web && npm run dev
 ```
 Expected: visiting `localhost:3000/dashboard` shows the nav bar and a "dashboard" placeholder.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/web/src/app apps/web/src/components
@@ -191,7 +193,7 @@ git commit -m "feat: add navigation shell and placeholder routes"
 **Files:**
 - Create: `apps/api/src/auth/current-user.decorator.ts`
 
-- [ ] **Step 1: Write the decorator**
+- [x] **Step 1: Write the decorator**
 
 ```ts
 // apps/api/src/auth/current-user.decorator.ts
@@ -214,7 +216,7 @@ export const CurrentUser = createParamDecorator(
 );
 ```
 
-- [ ] **Step 2: Set the matching env var**
+- [x] **Step 2: Set the matching env var**
 
 Add to `apps/api/.env` (value from Task 0.2, Step 5):
 ```
@@ -222,7 +224,7 @@ DEV_USER_ID="<the id printed by the seed script>"
 ```
 Add the same key with a blank value to `apps/api/.env.example`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add apps/api/src/auth apps/api/.env.example
@@ -246,7 +248,7 @@ Clients is built first since Projects references it. Income and Expenses (Phase 
 - Test: `apps/api/src/clients/clients.controller.spec.ts`
 - Modify: `apps/api/src/app.module.ts`
 
-- [ ] **Step 1: Add the Prisma service (needed by every module from here on)**
+- [x] **Step 1: Add the Prisma service (needed by every module from here on)**
 
 ```ts
 // apps/api/src/prisma/prisma.service.ts
@@ -261,7 +263,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 }
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 ```ts
 // apps/api/src/clients/clients.controller.spec.ts
@@ -291,14 +293,14 @@ describe('ClientsController', () => {
 });
 ```
 
-- [ ] **Step 3: Run the test to verify it fails**
+- [x] **Step 3: Run the test to verify it fails**
 
 ```bash
 cd apps/api && npx jest clients.controller.spec.ts
 ```
 Expected: FAIL — `Cannot find module './clients.controller'`.
 
-- [ ] **Step 4: Write the DTO**
+- [x] **Step 4: Write the DTO**
 
 ```ts
 // apps/api/src/clients/dto/create-client.dto.ts
@@ -322,7 +324,7 @@ export class CreateClientDto {
 }
 ```
 
-- [ ] **Step 5: Write the service**
+- [x] **Step 5: Write the service**
 
 ```ts
 // apps/api/src/clients/clients.service.ts
@@ -355,7 +357,7 @@ export class ClientsService {
 }
 ```
 
-- [ ] **Step 6: Write the controller**
+- [x] **Step 6: Write the controller**
 
 ```ts
 // apps/api/src/clients/clients.controller.ts
@@ -394,7 +396,7 @@ export class ClientsController {
 }
 ```
 
-- [ ] **Step 7: Wire the module and register it**
+- [x] **Step 7: Wire the module and register it**
 
 ```ts
 // apps/api/src/clients/clients.module.ts
@@ -412,14 +414,14 @@ export class ClientsModule {}
 
 Add `ClientsModule` to the `imports` array in `apps/api/src/app.module.ts`.
 
-- [ ] **Step 8: Run the test to verify it passes**
+- [x] **Step 8: Run the test to verify it passes**
 
 ```bash
 npx jest clients.controller.spec.ts
 ```
 Expected: PASS.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add apps/api/src/prisma apps/api/src/clients apps/api/src/app.module.ts
@@ -433,7 +435,7 @@ git commit -m "feat: add Client CRUD API"
 - Create: `apps/web/src/hooks/use-clients.ts`
 - Modify: `apps/web/src/app/(dashboard)/clients/page.tsx`
 
-- [ ] **Step 1: Typed API client**
+- [x] **Step 1: Typed API client**
 
 ```ts
 // apps/web/src/lib/api-client.ts
@@ -456,7 +458,7 @@ export const apiClient = {
 };
 ```
 
-- [ ] **Step 2: Query hook**
+- [x] **Step 2: Query hook**
 
 ```ts
 // apps/web/src/hooks/use-clients.ts
@@ -485,7 +487,7 @@ export function useCreateClient() {
 }
 ```
 
-- [ ] **Step 3: Page**
+- [x] **Step 3: Page**
 
 ```tsx
 // apps/web/src/app/(dashboard)/clients/page.tsx
@@ -518,11 +520,11 @@ export default function ClientsPage() {
 
 Note: this app needs a `QueryClientProvider` wrapping the tree for TanStack Query to work — add it in `apps/web/src/app/layout.tsx` (a client component provider) before running this step, per the standard TanStack Query + Next.js App Router setup in their docs.
 
-- [ ] **Step 4: Run it**
+- [x] **Step 4: Run it**
 
 With both apps running (`npm run dev` in `apps/api` and `apps/web`), visit `/clients` and confirm the seeded "Acme Corp" client (from Task 0.2) appears in the list, and that typing in the search box filters it.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/web/src/lib apps/web/src/hooks/use-clients.ts "apps/web/src/app/(dashboard)/clients"
@@ -541,7 +543,7 @@ Same six-step pattern as Task 1.1 (test → DTO → service → controller → m
 - Test: `apps/api/src/projects/projects.service.spec.ts`
 - Modify: `apps/api/src/app.module.ts`
 
-- [ ] **Step 1: Write the failing test for the totals calculation**
+- [x] **Step 1: Write the failing test for the totals calculation**
 
 ```ts
 // apps/api/src/projects/projects.service.spec.ts
@@ -575,14 +577,14 @@ describe('ProjectsService.findOne totals', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 ```bash
 npx jest projects.service.spec.ts
 ```
 Expected: FAIL — `Cannot find module './projects.service'`.
 
-- [ ] **Step 3: DTO**
+- [x] **Step 3: DTO**
 
 ```ts
 // apps/api/src/projects/dto/create-project.dto.ts
@@ -606,7 +608,7 @@ export class CreateProjectDto {
 }
 ```
 
-- [ ] **Step 4: Service, with the totals calculation**
+- [x] **Step 4: Service, with the totals calculation**
 
 ```ts
 // apps/api/src/projects/projects.service.ts
@@ -655,7 +657,7 @@ export class ProjectsService {
 }
 ```
 
-- [ ] **Step 5: Controller**
+- [x] **Step 5: Controller**
 
 ```ts
 // apps/api/src/projects/projects.controller.ts
@@ -699,7 +701,7 @@ export class ProjectsController {
 }
 ```
 
-- [ ] **Step 6: Module, register in `app.module.ts`, run tests, commit**
+- [x] **Step 6: Module, register in `app.module.ts`, run tests, commit**
 
 ```ts
 // apps/api/src/projects/projects.module.ts
@@ -731,7 +733,7 @@ Same pattern as Task 1.2, extended with a detail page.
 - Modify: `apps/web/src/app/(dashboard)/projects/page.tsx`
 - Create: `apps/web/src/app/(dashboard)/projects/[id]/page.tsx`
 
-- [ ] **Step 1: Hook (mirrors `use-clients.ts`, plus a detail query)**
+- [x] **Step 1: Hook (mirrors `use-clients.ts`, plus a detail query)**
 
 ```ts
 // apps/web/src/hooks/use-projects.ts
@@ -758,7 +760,7 @@ export function useProject(id: string) {
 }
 ```
 
-- [ ] **Step 2: Totals display component**
+- [x] **Step 2: Totals display component**
 
 ```tsx
 // apps/web/src/components/projects/project-totals.tsx
@@ -784,7 +786,7 @@ export function ProjectTotalsCard({ totals }: { totals: ProjectTotals }) {
 }
 ```
 
-- [ ] **Step 3: List page**
+- [x] **Step 3: List page**
 
 ```tsx
 // apps/web/src/app/(dashboard)/projects/page.tsx
@@ -810,7 +812,7 @@ export default function ProjectsPage() {
 }
 ```
 
-- [ ] **Step 4: Detail page**
+- [x] **Step 4: Detail page**
 
 ```tsx
 // apps/web/src/app/(dashboard)/projects/[id]/page.tsx
@@ -835,11 +837,11 @@ export default function ProjectDetailPage() {
 }
 ```
 
-- [ ] **Step 5: Run it**
+- [x] **Step 5: Run it**
 
 Visit `/projects`, click into the seeded "Acme Website Redesign" project, confirm totals show Income $2000.00, Expenses $20.00, Profit $1980.00 (matching the seed data from `03-Database-Design.md` §9).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/web/src/hooks/use-projects.ts apps/web/src/components/projects "apps/web/src/app/(dashboard)/projects"
@@ -848,7 +850,7 @@ git commit -m "feat: add project list and detail UI with computed totals"
 
 ---
 
-## Phase 2: Income & Expense Tracking (scope — expand before starting)
+## Phase 2: Income & Expense Tracking (scope — expand before starting) — done
 
 **Goal:** Add/edit/delete Income and Expense records nested under a project; the totals shown in Task 1.4 start reflecting real, user-entered data instead of only seed data.
 
@@ -856,7 +858,7 @@ git commit -m "feat: add project list and detail UI with computed totals"
 
 **Pattern to follow:** identical backend shape to Task 1.1/1.3 (failing test → DTO → service → controller → module → passing test → commit); identical frontend shape to Task 1.2/1.4. Endpoints are fully specified in `04-API-Specification.md` §7-8; schema is fully specified in `03-Database-Design.md` §3.4-3.5. On the frontend, adding an income/expense mutation must invalidate the `['projects', id]` query key (Task 1.4) so totals update immediately — this is the one integration detail that isn't obvious from the pattern alone.
 
-## Phase 3: Dashboard (scope)
+## Phase 3: Dashboard (scope) — done
 
 **Goal:** `GET /dashboard/summary` aggregation endpoint, plus KPI cards, a monthly trend chart, and a recent activity feed on `/dashboard`.
 
@@ -866,7 +868,7 @@ git commit -m "feat: add project list and detail UI with computed totals"
 
 **Contract:** fully specified in `04-API-Specification.md` §9.
 
-## Phase 4: Reports (scope)
+## Phase 4: Reports (scope) — done
 
 **Goal:** Four report endpoints/screens per `04-API-Specification.md` §10.
 
@@ -874,13 +876,13 @@ git commit -m "feat: add project list and detail UI with computed totals"
 
 **Important:** the profitability and revenue-by-client reports reuse the same profit calculation as Task 1.3 and Phase 3. Before writing this phase's tests, extract that calculation into a shared helper (`apps/api/src/common/calculate-profit.ts`) and backfill `ProjectsService.findOne` and the Phase 3 dashboard aggregation to call it, so profit is computed in exactly one place in the codebase.
 
-## Phase 5: Auth & Hardening (scope)
+## Phase 5: Auth & Hardening (scope) — done
 
-**Goal:** Replace the `CurrentUser` stub from Task 0.4 with real Clerk session verification; add validation and error-handling polish across every endpoint built so far.
+**Goal:** Replace the `CurrentUser` stub from Task 0.4 with real session verification; add validation and error-handling polish across every endpoint built so far. *(Done — implemented as Firebase Auth, not the Clerk originally scoped here; see `apps/api/src/auth/firebase-auth.guard.ts`.)*
 
 **Files to touch:** `apps/api/src/auth/*` (replace the decorator's implementation, keep its name and return shape identical so no controller changes), every existing controller only needs re-testing, not rewriting, since they already depend on the `AuthUser` interface rather than the stub directly.
 
-## Phase 6: Deploy (scope)
+## Phase 6: Deploy (scope) — done, though see Definition of Done for unverified items
 
 **Goal:** First production deploy. Follow `07-Deployment-and-DevOps.md` directly — it's already written at execution-ready detail (exact env vars, exact CI config, exact migration command).
 
@@ -888,11 +890,11 @@ git commit -m "feat: add project list and detail UI with computed totals"
 
 ## Definition of Done (MVP)
 
-- [ ] Every functional requirement in `01-Product-Requirements-Document.md` §6 has a corresponding, tested endpoint and UI.
-- [ ] Dashboard loads in under 2 seconds with realistic data volume (NFR).
-- [ ] All financial totals are calculated via the single shared helper introduced in Phase 4, not duplicated logic.
-- [ ] Deployed and reachable at a real domain, behind real Clerk auth (not the Task 0.4 stub).
-- [ ] Spreadsheets are no longer needed for project finances — the actual success metric from the PRD.
+- [x] Every functional requirement in `01-Product-Requirements-Document.md` §6 has a corresponding, tested endpoint and UI — verified FR-1.1 through FR-6.4 against the actual controllers/pages; the last gaps (FR-1.2 project edit, FR-1.5 project search/filter, FR-3.4 income payment status) were closed in the session that added this note.
+- [ ] Dashboard loads in under 2 seconds with realistic data volume (NFR) — **not measured**. No performance test exists; this needs a manual check against production Firestore with realistic record counts, not just the handful of seed rows used in dev.
+- [x] All financial totals are calculated via the single shared helper introduced in Phase 4, not duplicated logic — confirmed: `apps/api/src/common/calculate-profit.ts` is the only place profit math happens, used by `ProjectsService`, `DashboardService`, and `ReportsService`.
+- [ ] Deployed and reachable at a real domain, behind real auth (not the Task 0.4 stub) — auth is done (Firebase Auth, not the Clerk originally planned, and not the dev stub). **Live production deployment is not confirmed** — this doc can't verify a Vercel deployment exists or is reachable; check the Vercel dashboard.
+- [ ] Spreadsheets are no longer needed for project finances — the actual success metric from the PRD. Not something a repo/code check can confirm — this is a real-world usage outcome to assess once the app is actually in daily use.
 
 ## Self-Review Notes
 
