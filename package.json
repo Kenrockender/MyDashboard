@@ -1,5 +1,8 @@
 {
   "name": "project-finance-dashboard",
   "private": true,
-  "workspaces": ["apps/*"]
+  "workspaces": ["apps/*"],
+  "overrides": {
+    "jose": "^4.15.9"
+  }
 }
