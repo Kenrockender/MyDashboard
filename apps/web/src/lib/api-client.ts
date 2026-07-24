@@ -1,10 +1,21 @@
+import { auth } from './firebase';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = await auth.currentUser?.getIdToken();
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options?.headers,
+    },
   });
+  if (res.status === 401) {
+    await auth.signOut().catch(() => {});
+    throw new Error('Session expired');
+  }
   if (!res.ok) throw new Error(`API error ${res.status}`);
   const json = await res.json();
   return json.data;

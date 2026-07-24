@@ -35,6 +35,18 @@ export function useCreateIncome(projectId: string) {
   });
 }
 
+export function useUpdateIncome(projectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: Partial<CreateIncomeInput> }) =>
+      apiClient.patch<Income>(`/income/${id}`, dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'income'] });
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId] });
+    },
+  });
+}
+
 export function useDeleteIncome(projectId: string) {
   const queryClient = useQueryClient();
   return useMutation({

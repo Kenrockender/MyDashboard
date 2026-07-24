@@ -1,63 +1,113 @@
 import { Injectable } from '@nestjs/common';
-import { ProjectStatus } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { Timestamp } from 'firebase-admin/firestore';
+import { FirebaseService } from '../firebase/firebase.service';
+import { COLLECTIONS, docToEntity } from '../firebase/collections';
 import { calculateProfit } from '../common/calculate-profit';
 import { CreateProjectDto } from './dto/create-project.dto';
+import type { Client } from '../clients/clients.service';
+
+export interface Project {
+  id: string;
+  userId: string;
+  clientId?: string | null;
+  name: string;
+  status: string;
+  startDate?: Date | null;
+  endDate?: Date | null;
+  archived: boolean;
+  createdAt: Date;
+}
 
 @Injectable()
 export class ProjectsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private firebase: FirebaseService) {}
 
-  create(userId: string, dto: CreateProjectDto) {
-    return this.prisma.project.create({
-      data: {
-        userId,
-        name: dto.name,
-        clientId: dto.clientId,
-        status: dto.status as ProjectStatus | undefined,
-        startDate: dto.startDate ? new Date(dto.startDate) : undefined,
-      },
-    });
+  private get collection() {
+    return this.firebase.db.collection(COLLECTIONS.projects);
   }
 
-  findAll(userId: string, filters: { status?: string; clientId?: string; archived?: boolean }) {
-    return this.prisma.project.findMany({
-      where: {
-        userId,
-        archived: filters.archived ?? false,
-        status: filters.status as ProjectStatus | undefined,
-        clientId: filters.clientId,
-      },
-      orderBy: { createdAt: 'desc' },
+  async create(userId: string, dto: CreateProjectDto): Promise<Project> {
+    const ref = await this.collection.add({
+      userId,
+      name: dto.name,
+      clientId: dto.clientId ?? null,
+      status: dto.status ?? 'active',
+      startDate: dto.startDate ? Timestamp.fromDate(new Date(dto.startDate)) : null,
+      archived: false,
+      createdAt: Timestamp.now(),
     });
+    return docToEntity<Project>(await ref.get());
+  }
+
+  async findAll(
+    userId: string,
+    filters: { status?: string; clientId?: string; archived?: boolean },
+  ): Promise<Project[]> {
+    let query = this.collection
+      .where('userId', '==', userId)
+      .where('archived', '==', filters.archived ?? false);
+
+    if (filters.status) query = query.where('status', '==', filters.status);
+    if (filters.clientId) query = query.where('clientId', '==', filters.clientId);
+
+    const snapshot = await query.orderBy('createdAt', 'desc').get();
+    return snapshot.docs.map((doc) => docToEntity<Project>(doc));
   }
 
   async findOne(userId: string, id: string) {
-    const project = await this.prisma.project.findFirst({
-      where: { id, userId },
-      include: { client: true, income: true, expenses: true },
-    });
-    if (!project) return null;
+    const doc = await this.collection.doc(id).get();
+    if (!doc.exists) return null;
+
+    const project = docToEntity<Project>(doc);
+    if (project.userId !== userId) return null;
+
+    const [incomeSnap, expenseSnap, clientDoc] = await Promise.all([
+      this.firebase.db.collection(COLLECTIONS.income).where('projectId', '==', id).get(),
+      this.firebase.db.collection(COLLECTIONS.expenses).where('projectId', '==', id).get(),
+      project.clientId
+        ? this.firebase.db.collection(COLLECTIONS.clients).doc(project.clientId).get()
+        : Promise.resolve(null),
+    ]);
+
+    const income = incomeSnap.docs.map((d) => docToEntity<{ amount: number }>(d));
+    const expenses = expenseSnap.docs.map((d) => docToEntity<{ amount: number }>(d));
 
     return {
       ...project,
-      totals: calculateProfit(project.income, project.expenses),
+      client: clientDoc?.exists ? docToEntity<Client>(clientDoc) : null,
+      income,
+      expenses,
+      totals: calculateProfit(income, expenses),
     };
   }
 
-  update(userId: string, id: string, dto: Partial<CreateProjectDto>) {
-    return this.prisma.project.update({
-      where: { id, userId },
-      data: {
-        name: dto.name,
-        clientId: dto.clientId,
-        status: dto.status as ProjectStatus | undefined,
-        startDate: dto.startDate ? new Date(dto.startDate) : undefined,
-      },
-    });
+  async update(
+    userId: string,
+    id: string,
+    dto: Partial<CreateProjectDto>,
+  ): Promise<Project | null> {
+    const ref = this.collection.doc(id);
+    const doc = await ref.get();
+    if (!doc.exists || docToEntity<Project>(doc).userId !== userId) return null;
+
+    const patch: Record<string, unknown> = {};
+    if (dto.name !== undefined) patch.name = dto.name;
+    if (dto.clientId !== undefined) patch.clientId = dto.clientId;
+    if (dto.status !== undefined) patch.status = dto.status;
+    if (dto.startDate !== undefined) {
+      patch.startDate = dto.startDate ? Timestamp.fromDate(new Date(dto.startDate)) : null;
+    }
+
+    await ref.update(patch);
+    return docToEntity<Project>(await ref.get());
   }
 
-  archive(userId: string, id: string) {
-    return this.prisma.project.update({ where: { id, userId }, data: { archived: true } });
+  async archive(userId: string, id: string): Promise<Project | null> {
+    const ref = this.collection.doc(id);
+    const doc = await ref.get();
+    if (!doc.exists || docToEntity<Project>(doc).userId !== userId) return null;
+
+    await ref.update({ archived: true });
+    return docToEntity<Project>(await ref.get());
   }
 }

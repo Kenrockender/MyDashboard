@@ -1,8 +1,27 @@
-export function KpiCard({ label, value }: { label: string; value: string | number }) {
+import { Card } from "@/components/ui/card";
+
+const TONE_BAR = {
+  accent: "bg-accent",
+  negative: "bg-negative",
+  neutral: "bg-border",
+} as const;
+
+export function KpiCard({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string | number;
+  tone?: keyof typeof TONE_BAR;
+}) {
   return (
-    <div className="border rounded p-4">
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className="text-xl font-semibold">{value}</p>
-    </div>
+    <Card className="relative overflow-hidden pl-5">
+      <span className={`absolute inset-y-0 left-0 w-1 ${TONE_BAR[tone]}`} />
+      <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">
+        {label}
+      </p>
+      <p className="mt-1 font-tabular font-mono text-2xl text-ink">{value}</p>
+    </Card>
   );
 }

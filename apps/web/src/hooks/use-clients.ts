@@ -21,3 +21,12 @@ export function useCreateClient() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['clients'] }),
   });
 }
+
+export function useUpdateClient() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: Partial<{ name: string; email?: string }> }) =>
+      apiClient.patch<Client>(`/clients/${id}`, dto),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['clients'] }),
+  });
+}

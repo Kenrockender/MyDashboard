@@ -35,6 +35,18 @@ export function useCreateExpense(projectId: string) {
   });
 }
 
+export function useUpdateExpense(projectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: Partial<CreateExpenseInput> }) =>
+      apiClient.patch<Expense>(`/expenses/${id}`, dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId] });
+    },
+  });
+}
+
 export function useDeleteExpense(projectId: string) {
   const queryClient = useQueryClient();
   return useMutation({

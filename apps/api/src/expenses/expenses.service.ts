@@ -1,52 +1,82 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { ExpenseCategory } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { Timestamp } from 'firebase-admin/firestore';
+import { FirebaseService } from '../firebase/firebase.service';
+import { COLLECTIONS, docToEntity } from '../firebase/collections';
 import { CreateExpenseDto } from './dto/create-expense.dto';
+
+export interface Expense {
+  id: string;
+  userId: string;
+  projectId: string;
+  amount: number;
+  category: string;
+  description?: string;
+  date: Date;
+  createdAt: Date;
+}
 
 @Injectable()
 export class ExpensesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private firebase: FirebaseService) {}
+
+  private get collection() {
+    return this.firebase.db.collection(COLLECTIONS.expenses);
+  }
 
   private async assertProjectOwnership(userId: string, projectId: string) {
-    const project = await this.prisma.project.findFirst({ where: { id: projectId, userId } });
-    if (!project) throw new NotFoundException('Project not found');
+    const doc = await this.firebase.db.collection(COLLECTIONS.projects).doc(projectId).get();
+    if (!doc.exists || doc.data()?.userId !== userId) {
+      throw new NotFoundException('Project not found');
+    }
   }
 
-  async create(userId: string, projectId: string, dto: CreateExpenseDto) {
+  async create(userId: string, projectId: string, dto: CreateExpenseDto): Promise<Expense> {
     await this.assertProjectOwnership(userId, projectId);
-    return this.prisma.expense.create({
-      data: {
-        projectId,
-        amount: dto.amount,
-        category: dto.category as ExpenseCategory,
-        description: dto.description,
-        date: new Date(dto.date),
-      },
+    const ref = await this.collection.add({
+      userId,
+      projectId,
+      amount: dto.amount,
+      category: dto.category,
+      description: dto.description ?? null,
+      date: Timestamp.fromDate(new Date(dto.date)),
+      createdAt: Timestamp.now(),
     });
+    return docToEntity<Expense>(await ref.get());
   }
 
-  async findAll(userId: string, projectId: string) {
+  async findAll(userId: string, projectId: string): Promise<Expense[]> {
     await this.assertProjectOwnership(userId, projectId);
-    return this.prisma.expense.findMany({ where: { projectId }, orderBy: { date: 'desc' } });
+    const snapshot = await this.collection
+      .where('projectId', '==', projectId)
+      .orderBy('date', 'desc')
+      .get();
+    return snapshot.docs.map((doc) => docToEntity<Expense>(doc));
   }
 
-  async update(userId: string, id: string, dto: Partial<CreateExpenseDto>) {
-    const expense = await this.prisma.expense.findFirst({ where: { id, project: { userId } } });
-    if (!expense) throw new NotFoundException('Expense not found');
-    return this.prisma.expense.update({
-      where: { id },
-      data: {
-        amount: dto.amount,
-        category: dto.category as ExpenseCategory | undefined,
-        description: dto.description,
-        date: dto.date ? new Date(dto.date) : undefined,
-      },
-    });
+  async update(userId: string, id: string, dto: Partial<CreateExpenseDto>): Promise<Expense> {
+    const ref = this.collection.doc(id);
+    const doc = await ref.get();
+    if (!doc.exists || doc.data()?.userId !== userId) {
+      throw new NotFoundException('Expense not found');
+    }
+
+    const patch: Record<string, unknown> = {};
+    if (dto.amount !== undefined) patch.amount = dto.amount;
+    if (dto.category !== undefined) patch.category = dto.category;
+    if (dto.description !== undefined) patch.description = dto.description;
+    if (dto.date !== undefined) patch.date = Timestamp.fromDate(new Date(dto.date));
+
+    await ref.update(patch);
+    return docToEntity<Expense>(await ref.get());
   }
 
-  async remove(userId: string, id: string) {
-    const expense = await this.prisma.expense.findFirst({ where: { id, project: { userId } } });
-    if (!expense) throw new NotFoundException('Expense not found');
-    return this.prisma.expense.delete({ where: { id } });
+  async remove(userId: string, id: string): Promise<{ id: string }> {
+    const ref = this.collection.doc(id);
+    const doc = await ref.get();
+    if (!doc.exists || doc.data()?.userId !== userId) {
+      throw new NotFoundException('Expense not found');
+    }
+    await ref.delete();
+    return { id };
   }
 }
