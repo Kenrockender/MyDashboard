@@ -1,0 +1,41 @@
+name: Firestore backup
+
+# Runs a scheduled export of every Firestore collection and stores the JSON
+# dump as a downloadable workflow artifact. This protects the (single-user)
+# finance data against accidental deletion or corruption.
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   FIREBASE_PROJECT_ID    - same value as the API's env var
+#   FIREBASE_CLIENT_EMAIL  - same value as the API's env var
+#   FIREBASE_PRIVATE_KEY   - same value as the API's env var (with \n escapes)
+#   FIREBASE_DATABASE_ID   - optional; defaults to "(default)"
+
+on:
+  schedule:
+    # 18:00 UTC daily (≈ 01:00 WIB). GitHub cron is always UTC.
+    - cron: '0 18 * * *'
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Export Firestore
+        working-directory: apps/api
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+          FIREBASE_DATABASE_ID: ${{ secrets.FIREBASE_DATABASE_ID }}
+        run: npm run backup
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firestore-backup-${{ github.run_id }}
+          path: apps/api/backups/*.json
+          retention-days: 90

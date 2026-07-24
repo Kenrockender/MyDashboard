@@ -22,7 +22,13 @@ import { getFirebaseApp } from '../src/firebase/firebase-app';
 import { COLLECTIONS } from '../src/firebase/collections';
 
 async function backup(): Promise<void> {
-  const db = getFirestore(getFirebaseApp());
+  // Match FirebaseService: standard databases are "(default)", Enterprise
+  // edition ones are "default" — read the same env var the API uses so the
+  // backup always targets the database the app actually writes to.
+  const db = getFirestore(
+    getFirebaseApp(),
+    process.env.FIREBASE_DATABASE_ID ?? '(default)',
+  );
   const dump: Record<string, Array<Record<string, unknown>>> = {};
   let total = 0;
 
