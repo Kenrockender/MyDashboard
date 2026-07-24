@@ -24,13 +24,20 @@ export class ExpensesService {
   }
 
   private async assertProjectOwnership(userId: string, projectId: string) {
-    const doc = await this.firebase.db.collection(COLLECTIONS.projects).doc(projectId).get();
+    const doc = await this.firebase.db
+      .collection(COLLECTIONS.projects)
+      .doc(projectId)
+      .get();
     if (!doc.exists || doc.data()?.userId !== userId) {
       throw new NotFoundException('Project not found');
     }
   }
 
-  async create(userId: string, projectId: string, dto: CreateExpenseDto): Promise<Expense> {
+  async create(
+    userId: string,
+    projectId: string,
+    dto: CreateExpenseDto,
+  ): Promise<Expense> {
     await this.assertProjectOwnership(userId, projectId);
     const ref = await this.collection.add({
       userId,
@@ -53,7 +60,11 @@ export class ExpensesService {
     return snapshot.docs.map((doc) => docToEntity<Expense>(doc));
   }
 
-  async update(userId: string, id: string, dto: Partial<CreateExpenseDto>): Promise<Expense> {
+  async update(
+    userId: string,
+    id: string,
+    dto: Partial<CreateExpenseDto>,
+  ): Promise<Expense> {
     const ref = this.collection.doc(id);
     const doc = await ref.get();
     if (!doc.exists || doc.data()?.userId !== userId) {
@@ -64,7 +75,8 @@ export class ExpensesService {
     if (dto.amount !== undefined) patch.amount = dto.amount;
     if (dto.category !== undefined) patch.category = dto.category;
     if (dto.description !== undefined) patch.description = dto.description;
-    if (dto.date !== undefined) patch.date = Timestamp.fromDate(new Date(dto.date));
+    if (dto.date !== undefined)
+      patch.date = Timestamp.fromDate(new Date(dto.date));
 
     await ref.update(patch);
     return docToEntity<Expense>(await ref.get());

@@ -25,7 +25,12 @@ describe('calculateMonthlyTrend', () => {
   });
 
   it('handles a month with expenses but no income', () => {
-    const result = calculateMonthlyTrend([], [{ amount: 50, date: '2026-07-01T00:00:00.000Z' }]);
-    expect(result).toEqual([{ month: '2026-07', revenue: 0, expenses: 50, profit: -50 }]);
+    const result = calculateMonthlyTrend(
+      [],
+      [{ amount: 50, date: '2026-07-01T00:00:00.000Z' }],
+    );
+    expect(result).toEqual([
+      { month: '2026-07', revenue: 0, expenses: 50, profit: -50 },
+    ]);
   });
 });

@@ -61,7 +61,11 @@ export class ClientsService {
     return { ...client, projects: projects.docs.map((d) => docToEntity(d)) };
   }
 
-  async update(userId: string, id: string, dto: Partial<CreateClientDto>): Promise<Client | null> {
+  async update(
+    userId: string,
+    id: string,
+    dto: Partial<CreateClientDto>,
+  ): Promise<Client | null> {
     const ref = this.collection.doc(id);
     const doc = await ref.get();
     if (!doc.exists || docToEntity<Client>(doc).userId !== userId) return null;

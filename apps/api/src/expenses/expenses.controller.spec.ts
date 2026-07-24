@@ -18,7 +18,9 @@ describe('ExpensesController', () => {
 
   it('creates an expense record', async () => {
     const dto = { amount: 20, category: 'domain', date: '2026-06-02' };
-    const result = await controller.create('proj_1', dto as never, { userId: 'user_1' });
+    const result = await controller.create('proj_1', dto, {
+      userId: 'user_1',
+    });
     expect(result.data.amount).toBe(20);
     expect(mockService.create).toHaveBeenCalledWith('user_1', 'proj_1', dto);
   });

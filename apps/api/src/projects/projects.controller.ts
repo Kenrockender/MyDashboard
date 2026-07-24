@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Patch, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  Query,
+} from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
@@ -34,7 +42,11 @@ export class ProjectsController {
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() dto: Partial<CreateProjectDto>, @CurrentUser() user: AuthUser) {
+  async update(
+    @Param('id') id: string,
+    @Body() dto: Partial<CreateProjectDto>,
+    @CurrentUser() user: AuthUser,
+  ) {
     return { data: await this.projectsService.update(user.userId, id, dto) };
   }
 

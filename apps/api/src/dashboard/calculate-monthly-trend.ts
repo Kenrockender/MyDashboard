@@ -15,7 +15,10 @@ export function monthKey(date: Date | string): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-export function calculateMonthlyTrend(income: DatedAmount[], expenses: DatedAmount[]): MonthlyTrendEntry[] {
+export function calculateMonthlyTrend(
+  income: DatedAmount[],
+  expenses: DatedAmount[],
+): MonthlyTrendEntry[] {
   const months = new Map<string, { revenue: number; expenses: number }>();
 
   for (const i of income) {
@@ -34,5 +37,10 @@ export function calculateMonthlyTrend(income: DatedAmount[], expenses: DatedAmou
 
   return [...months.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, { revenue, expenses }]) => ({ month, revenue, expenses, profit: revenue - expenses }));
+    .map(([month, { revenue, expenses }]) => ({
+      month,
+      revenue,
+      expenses,
+      profit: revenue - expenses,
+    }));
 }

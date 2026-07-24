@@ -17,8 +17,18 @@ export function calculateRecentActivity(
   limit = 10,
 ): RecentActivityEntry[] {
   const entries: RecentActivityEntry[] = [
-    ...income.map((i) => ({ type: 'income' as const, projectId: i.projectId, amount: Number(i.amount), date: i.date })),
-    ...expenses.map((e) => ({ type: 'expense' as const, projectId: e.projectId, amount: Number(e.amount), date: e.date })),
+    ...income.map((i) => ({
+      type: 'income' as const,
+      projectId: i.projectId,
+      amount: Number(i.amount),
+      date: i.date,
+    })),
+    ...expenses.map((e) => ({
+      type: 'expense' as const,
+      projectId: e.projectId,
+      amount: Number(e.amount),
+      date: e.date,
+    })),
   ];
 
   return entries

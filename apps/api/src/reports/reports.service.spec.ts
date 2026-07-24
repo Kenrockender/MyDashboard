@@ -5,7 +5,10 @@ import { createFakeFirestore } from '../firebase/fake-firestore';
 
 async function buildService(seed: Parameters<typeof createFakeFirestore>[0]) {
   const module = await Test.createTestingModule({
-    providers: [ReportsService, { provide: FirebaseService, useValue: createFakeFirestore(seed) }],
+    providers: [
+      ReportsService,
+      { provide: FirebaseService, useValue: createFakeFirestore(seed) },
+    ],
   }).compile();
   return module.get(ReportsService);
 }
@@ -30,7 +33,11 @@ describe('ReportsService', () => {
       });
 
       const result = await service.getProfitability('user_1');
-      expect(result.map((r) => r.projectId)).toEqual(['proj_2', 'proj_1', 'proj_3']);
+      expect(result.map((r) => r.projectId)).toEqual([
+        'proj_2',
+        'proj_1',
+        'proj_3',
+      ]);
       expect(result[0].margin).toBeCloseTo(0.9);
       expect(result.find((r) => r.projectId === 'proj_3')!.margin).toBe(0);
     });
@@ -57,11 +64,26 @@ describe('ReportsService', () => {
     it('filters income and expenses to the requested month only', async () => {
       const service = await buildService({
         income: [
-          { id: 'i1', userId: 'user_1', amount: 1000, date: '2026-05-31T00:00:00.000Z' },
-          { id: 'i2', userId: 'user_1', amount: 2000, date: '2026-06-01T00:00:00.000Z' },
+          {
+            id: 'i1',
+            userId: 'user_1',
+            amount: 1000,
+            date: '2026-05-31T00:00:00.000Z',
+          },
+          {
+            id: 'i2',
+            userId: 'user_1',
+            amount: 2000,
+            date: '2026-06-01T00:00:00.000Z',
+          },
         ],
         expenses: [
-          { id: 'e1', userId: 'user_1', amount: 100, date: '2026-06-15T00:00:00.000Z' },
+          {
+            id: 'e1',
+            userId: 'user_1',
+            amount: 100,
+            date: '2026-06-15T00:00:00.000Z',
+          },
         ],
       });
 

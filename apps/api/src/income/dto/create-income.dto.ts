@@ -1,4 +1,11 @@
-import { IsNumber, IsPositive, IsOptional, IsString, IsIn, IsDateString } from 'class-validator';
+import {
+  IsNumber,
+  IsPositive,
+  IsOptional,
+  IsString,
+  IsIn,
+  IsDateString,
+} from 'class-validator';
 
 export class CreateIncomeDto {
   @IsNumber()

@@ -32,7 +32,9 @@ export class ProjectsService {
       name: dto.name,
       clientId: dto.clientId ?? null,
       status: dto.status ?? 'active',
-      startDate: dto.startDate ? Timestamp.fromDate(new Date(dto.startDate)) : null,
+      startDate: dto.startDate
+        ? Timestamp.fromDate(new Date(dto.startDate))
+        : null,
       archived: false,
       createdAt: Timestamp.now(),
     });
@@ -53,7 +55,8 @@ export class ProjectsService {
       .where('archived', '==', filters.archived ?? false);
 
     if (filters.status) query = query.where('status', '==', filters.status);
-    if (filters.clientId) query = query.where('clientId', '==', filters.clientId);
+    if (filters.clientId)
+      query = query.where('clientId', '==', filters.clientId);
 
     const snapshot = await query.orderBy('createdAt', 'desc').get();
     const projects = snapshot.docs.map((doc) => docToEntity<Project>(doc));
@@ -62,7 +65,9 @@ export class ProjectsService {
     // the already user-scoped result keeps project search predictable.
     if (!filters.search) return projects;
     const needle = filters.search.toLowerCase();
-    return projects.filter((project) => project.name.toLowerCase().includes(needle));
+    return projects.filter((project) =>
+      project.name.toLowerCase().includes(needle),
+    );
   }
 
   async findOne(userId: string, id: string) {
@@ -73,15 +78,28 @@ export class ProjectsService {
     if (project.userId !== userId) return null;
 
     const [incomeSnap, expenseSnap, clientDoc] = await Promise.all([
-      this.firebase.db.collection(COLLECTIONS.income).where('projectId', '==', id).get(),
-      this.firebase.db.collection(COLLECTIONS.expenses).where('projectId', '==', id).get(),
+      this.firebase.db
+        .collection(COLLECTIONS.income)
+        .where('projectId', '==', id)
+        .get(),
+      this.firebase.db
+        .collection(COLLECTIONS.expenses)
+        .where('projectId', '==', id)
+        .get(),
       project.clientId
-        ? this.firebase.db.collection(COLLECTIONS.clients).doc(project.clientId).get()
+        ? this.firebase.db
+            .collection(COLLECTIONS.clients)
+            .doc(project.clientId)
+            .get()
         : Promise.resolve(null),
     ]);
 
-    const income = incomeSnap.docs.map((d) => docToEntity<{ amount: number }>(d));
-    const expenses = expenseSnap.docs.map((d) => docToEntity<{ amount: number }>(d));
+    const income = incomeSnap.docs.map((d) =>
+      docToEntity<{ amount: number }>(d),
+    );
+    const expenses = expenseSnap.docs.map((d) =>
+      docToEntity<{ amount: number }>(d),
+    );
 
     return {
       ...project,
@@ -106,7 +124,9 @@ export class ProjectsService {
     if (dto.clientId !== undefined) patch.clientId = dto.clientId;
     if (dto.status !== undefined) patch.status = dto.status;
     if (dto.startDate !== undefined) {
-      patch.startDate = dto.startDate ? Timestamp.fromDate(new Date(dto.startDate)) : null;
+      patch.startDate = dto.startDate
+        ? Timestamp.fromDate(new Date(dto.startDate))
+        : null;
     }
 
     await ref.update(patch);

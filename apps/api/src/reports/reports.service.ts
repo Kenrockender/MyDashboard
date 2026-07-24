@@ -14,8 +14,14 @@ export class ReportsService {
 
   private async getAllRecords(userId: string) {
     const [incomeSnap, expenseSnap] = await Promise.all([
-      this.firebase.db.collection(COLLECTIONS.income).where('userId', '==', userId).get(),
-      this.firebase.db.collection(COLLECTIONS.expenses).where('userId', '==', userId).get(),
+      this.firebase.db
+        .collection(COLLECTIONS.income)
+        .where('userId', '==', userId)
+        .get(),
+      this.firebase.db
+        .collection(COLLECTIONS.expenses)
+        .where('userId', '==', userId)
+        .get(),
     ]);
     return {
       income: incomeSnap.docs.map((d) => docToEntity<Income>(d)),
@@ -28,12 +34,20 @@ export class ReportsService {
     const monthIncome = income.filter((i) => monthKey(i.date) === month);
     const monthExpenses = expenses.filter((e) => monthKey(e.date) === month);
     const totals = calculateProfit(monthIncome, monthExpenses);
-    return { month, revenue: totals.income, expenses: totals.expenses, profit: totals.profit };
+    return {
+      month,
+      revenue: totals.income,
+      expenses: totals.expenses,
+      profit: totals.profit,
+    };
   }
 
   async getProfitability(userId: string) {
     const [projectSnap, { income, expenses }] = await Promise.all([
-      this.firebase.db.collection(COLLECTIONS.projects).where('userId', '==', userId).get(),
+      this.firebase.db
+        .collection(COLLECTIONS.projects)
+        .where('userId', '==', userId)
+        .get(),
       this.getAllRecords(userId),
     ]);
 
@@ -69,8 +83,14 @@ export class ReportsService {
 
   async getRevenueBreakdown(userId: string) {
     const [projectSnap, clientSnap, { income }] = await Promise.all([
-      this.firebase.db.collection(COLLECTIONS.projects).where('userId', '==', userId).get(),
-      this.firebase.db.collection(COLLECTIONS.clients).where('userId', '==', userId).get(),
+      this.firebase.db
+        .collection(COLLECTIONS.projects)
+        .where('userId', '==', userId)
+        .get(),
+      this.firebase.db
+        .collection(COLLECTIONS.clients)
+        .where('userId', '==', userId)
+        .get(),
       this.getAllRecords(userId),
     ]);
 
@@ -78,7 +98,10 @@ export class ReportsService {
       clientSnap.docs.map((d) => [d.id, docToEntity<Client>(d).name] as const),
     );
 
-    const groups = new Map<string, { clientId: string | null; clientName: string; total: number }>();
+    const groups = new Map<
+      string,
+      { clientId: string | null; clientName: string; total: number }
+    >();
     for (const doc of projectSnap.docs) {
       const project = docToEntity<Project>(doc);
       const key = project.clientId ?? 'none';

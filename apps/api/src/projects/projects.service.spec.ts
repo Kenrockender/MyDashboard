@@ -34,14 +34,21 @@ describe('ProjectsService.findOne totals', () => {
     });
 
     const module = await Test.createTestingModule({
-      providers: [ProjectsService, { provide: FirebaseService, useValue: firebase }],
+      providers: [
+        ProjectsService,
+        { provide: FirebaseService, useValue: firebase },
+      ],
     }).compile();
     service = module.get(ProjectsService);
   });
 
   it('computes income, expenses, and profit', async () => {
     const result = await service.findOne('user_1', 'proj_1');
-    expect(result!.totals).toEqual({ income: 4500, expenses: 320, profit: 4180 });
+    expect(result!.totals).toEqual({
+      income: 4500,
+      expenses: 320,
+      profit: 4180,
+    });
   });
 
   it('returns null for a project owned by someone else', async () => {

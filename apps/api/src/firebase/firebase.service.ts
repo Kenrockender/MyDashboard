@@ -11,7 +11,10 @@ export class FirebaseService {
 
   constructor() {
     // Enterprise-edition databases are named `default`, standard ones `(default)`.
-    this.db = getFirestore(getFirebaseApp(), process.env.FIREBASE_DATABASE_ID ?? '(default)');
+    this.db = getFirestore(
+      getFirebaseApp(),
+      process.env.FIREBASE_DATABASE_ID ?? '(default)',
+    );
     // Optional DTO fields arrive as `undefined`; without this Firestore
     // rejects the whole write instead of omitting the field.
     this.db.settings({ ignoreUndefinedProperties: true });

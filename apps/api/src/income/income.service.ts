@@ -24,13 +24,20 @@ export class IncomeService {
   }
 
   private async assertProjectOwnership(userId: string, projectId: string) {
-    const doc = await this.firebase.db.collection(COLLECTIONS.projects).doc(projectId).get();
+    const doc = await this.firebase.db
+      .collection(COLLECTIONS.projects)
+      .doc(projectId)
+      .get();
     if (!doc.exists || doc.data()?.userId !== userId) {
       throw new NotFoundException('Project not found');
     }
   }
 
-  async create(userId: string, projectId: string, dto: CreateIncomeDto): Promise<Income> {
+  async create(
+    userId: string,
+    projectId: string,
+    dto: CreateIncomeDto,
+  ): Promise<Income> {
     await this.assertProjectOwnership(userId, projectId);
     const ref = await this.collection.add({
       userId,
@@ -53,7 +60,11 @@ export class IncomeService {
     return snapshot.docs.map((doc) => docToEntity<Income>(doc));
   }
 
-  async update(userId: string, id: string, dto: Partial<CreateIncomeDto>): Promise<Income> {
+  async update(
+    userId: string,
+    id: string,
+    dto: Partial<CreateIncomeDto>,
+  ): Promise<Income> {
     const ref = this.collection.doc(id);
     const doc = await ref.get();
     if (!doc.exists || doc.data()?.userId !== userId) {
@@ -64,7 +75,8 @@ export class IncomeService {
     if (dto.amount !== undefined) patch.amount = dto.amount;
     if (dto.description !== undefined) patch.description = dto.description;
     if (dto.status !== undefined) patch.status = dto.status;
-    if (dto.date !== undefined) patch.date = Timestamp.fromDate(new Date(dto.date));
+    if (dto.date !== undefined)
+      patch.date = Timestamp.fromDate(new Date(dto.date));
 
     await ref.update(patch);
     return docToEntity<Income>(await ref.get());

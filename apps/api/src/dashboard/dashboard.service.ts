@@ -14,9 +14,18 @@ export class DashboardService {
 
   async getSummary(userId: string) {
     const [projectSnap, incomeSnap, expenseSnap] = await Promise.all([
-      this.firebase.db.collection(COLLECTIONS.projects).where('userId', '==', userId).get(),
-      this.firebase.db.collection(COLLECTIONS.income).where('userId', '==', userId).get(),
-      this.firebase.db.collection(COLLECTIONS.expenses).where('userId', '==', userId).get(),
+      this.firebase.db
+        .collection(COLLECTIONS.projects)
+        .where('userId', '==', userId)
+        .get(),
+      this.firebase.db
+        .collection(COLLECTIONS.income)
+        .where('userId', '==', userId)
+        .get(),
+      this.firebase.db
+        .collection(COLLECTIONS.expenses)
+        .where('userId', '==', userId)
+        .get(),
     ]);
 
     const projects = projectSnap.docs.map((d) => docToEntity<Project>(d));
@@ -34,7 +43,8 @@ export class DashboardService {
       totalExpenses,
       netProfit,
       activeProjects: projects.filter((p) => p.status === 'active').length,
-      completedProjects: projects.filter((p) => p.status === 'completed').length,
+      completedProjects: projects.filter((p) => p.status === 'completed')
+        .length,
       monthlyTrend: calculateMonthlyTrend(allIncome, allExpenses),
       recentActivity: calculateRecentActivity(allIncome, allExpenses),
     };

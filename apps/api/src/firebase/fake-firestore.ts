@@ -1,8 +1,17 @@
+import { Timestamp } from 'firebase-admin/firestore';
+
 type Doc = Record<string, unknown> & { id: string };
 
 interface Filter {
   field: string;
   value: unknown;
+}
+
+let nextId = 1;
+
+function toMillis(value: unknown): number {
+  if (value instanceof Timestamp) return value.toMillis();
+  return Number(new Date(value as string));
 }
 
 function snapshotOf(doc: Doc | undefined) {
@@ -13,28 +22,35 @@ function snapshotOf(doc: Doc | undefined) {
 
 class FakeQuery {
   constructor(
-    private docs: Doc[],
+    protected getDocs: () => Doc[],
     private filters: Filter[] = [],
     private sort?: { field: string; desc: boolean },
   ) {}
 
   where(field: string, _op: string, value: unknown) {
-    return new FakeQuery(this.docs, [...this.filters, { field, value }], this.sort);
+    return new FakeQuery(
+      this.getDocs,
+      [...this.filters, { field, value }],
+      this.sort,
+    );
   }
 
   orderBy(field: string, direction: 'asc' | 'desc' = 'asc') {
-    return new FakeQuery(this.docs, this.filters, { field, desc: direction === 'desc' });
+    return new FakeQuery(this.getDocs, this.filters, {
+      field,
+      desc: direction === 'desc',
+    });
   }
 
   get() {
-    let result = this.docs.filter((doc) =>
+    let result = this.getDocs().filter((doc) =>
       this.filters.every((f) => doc[f.field] === f.value),
     );
     if (this.sort) {
       const { field, desc } = this.sort;
       result = [...result].sort((a, b) => {
-        const av = Number(new Date(a[field] as string));
-        const bv = Number(new Date(b[field] as string));
+        const av = toMillis(a[field]);
+        const bv = toMillis(b[field]);
         return desc ? bv - av : av - bv;
       });
     }
@@ -43,25 +59,56 @@ class FakeQuery {
 }
 
 class FakeCollection extends FakeQuery {
-  constructor(private all: Doc[]) {
-    super(all);
+  constructor(private store: Doc[]) {
+    super(() => store);
   }
 
   doc(id: string) {
+    const find = () => this.store.find((d) => d.id === id);
     return {
-      get: () => Promise.resolve(snapshotOf(this.all.find((d) => d.id === id))),
+      get: () => Promise.resolve(snapshotOf(find())),
+      update: (patch: Record<string, unknown>) => {
+        const doc = find();
+        if (doc) Object.assign(doc, patch);
+        return Promise.resolve();
+      },
+      delete: () => {
+        const index = this.store.findIndex((d) => d.id === id);
+        if (index !== -1) this.store.splice(index, 1);
+        return Promise.resolve();
+      },
     };
+  }
+
+  add(data: Record<string, unknown>) {
+    const id = `fake_${nextId++}`;
+    const doc: Doc = { id, ...data };
+    this.store.push(doc);
+    return Promise.resolve({
+      id,
+      get: () => Promise.resolve(snapshotOf(doc)),
+    });
   }
 }
 
 /**
- * In-memory stand-in for the Firestore client, covering only the read paths the
- * services use. Seed with `{ collectionName: [{ id, ...fields }] }`.
+ * In-memory stand-in for the Firestore client. Supports the read and write
+ * paths the services use (where/orderBy/get, doc get/update/delete, add).
+ * Seed with `{ collectionName: [{ id, ...fields }] }` — writes made during a
+ * test are visible to subsequent reads against the same instance.
  */
-export function createFakeFirestore(seed: Record<string, Doc[]>) {
+export function createFakeFirestore(seed: Record<string, Doc[]> = {}) {
+  const stores = new Map<string, Doc[]>(
+    Object.entries(seed).map(([name, docs]) => [name, [...docs]]),
+  );
+
   return {
     db: {
-      collection: (name: string) => new FakeCollection(seed[name] ?? []),
+      collection: (name: string) => {
+        if (!stores.has(name)) stores.set(name, []);
+        return new FakeCollection(stores.get(name)!);
+      },
+      settings: () => {},
     },
   };
 }

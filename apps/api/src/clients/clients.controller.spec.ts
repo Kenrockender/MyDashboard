@@ -17,8 +17,13 @@ describe('ClientsController', () => {
   });
 
   it('creates a client', async () => {
-    const result = await controller.create({ name: 'Acme Corp' }, { userId: 'user_1' });
+    const result = await controller.create(
+      { name: 'Acme Corp' },
+      { userId: 'user_1' },
+    );
     expect(result.data.name).toBe('Acme Corp');
-    expect(mockService.create).toHaveBeenCalledWith('user_1', { name: 'Acme Corp' });
+    expect(mockService.create).toHaveBeenCalledWith('user_1', {
+      name: 'Acme Corp',
+    });
   });
 });

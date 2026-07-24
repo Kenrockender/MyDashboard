@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Patch, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  Query,
+} from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
@@ -14,7 +22,10 @@ export class ClientsController {
   }
 
   @Get()
-  async findAll(@CurrentUser() user: AuthUser, @Query('search') search?: string) {
+  async findAll(
+    @CurrentUser() user: AuthUser,
+    @Query('search') search?: string,
+  ) {
     const data = await this.clientsService.findAll(user.userId, search);
     return { data };
   }
@@ -26,7 +37,11 @@ export class ClientsController {
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() dto: Partial<CreateClientDto>, @CurrentUser() user: AuthUser) {
+  async update(
+    @Param('id') id: string,
+    @Body() dto: Partial<CreateClientDto>,
+    @CurrentUser() user: AuthUser,
+  ) {
     const data = await this.clientsService.update(user.userId, id, dto);
     return { data };
   }

@@ -2,7 +2,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [master]
 
 jobs:
   test:
@@ -15,4 +15,5 @@ jobs:
       - run: npm ci
       - run: npm run lint --workspaces --if-present
       - run: npm run test --workspaces --if-present
+      - run: npm run test:e2e --workspace=apps/api --if-present
       - run: npm run build --workspaces --if-present
