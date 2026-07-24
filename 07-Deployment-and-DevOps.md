@@ -15,7 +15,7 @@ Deployment target: everything on Vercel, plus Firestore. The repo is an npm-work
 |---|---|---|
 | Frontend | Vercel | Root Directory set to `apps/web`; auto-deploys from `master`, preview deploys per PR |
 | Backend API | Vercel | Root Directory set to `apps/api`; runs as a Node.js serverless function (`apps/api/api/index.ts`), not a long-lived process — see §5a |
-| Database | Firestore | Serverless NoSQL. **Composite indexes for the app's filtered list queries have not been created yet** — see `03-Database-Design.md` §5, this will break those endpoints in a fresh project until fixed |
+| Database | Firestore | Serverless NoSQL. **Composite index *definitions* now exist** (`/firestore.indexes.json`, `/firebase.json`) but haven't been deployed to the actual Firestore project yet — see §6 |
 | Auth | Firebase Auth | Google sign-in; frontend talks to it directly, backend verifies ID tokens via `firebase-admin/auth` |
 | File storage (future) | Cloudflare R2 | Not needed until attachments ship |
 
@@ -83,7 +83,7 @@ Store these in each Vercel project's environment variable settings per environme
 
 Firestore is schemaless, so there's no migration step to run. What actually needs attention before/during deploy:
 
-- **Composite indexes** (`03-Database-Design.md` §5) — currently missing. Create them via the Firebase console links Firestore surfaces on first failed query, or author a `firestore.indexes.json` and deploy via the Firebase CLI.
+- **Composite indexes** (`03-Database-Design.md` §5) — the six needed index definitions are written in `/firestore.indexes.json`, referenced from `/firebase.json`. **They still need to be deployed**: `firebase login`, `firebase use <project-id>` (no `.firebaserc` is committed, since the project ID wasn't available when these files were authored), then `firebase deploy --only firestore:indexes`. Until that's run once, `/projects?status=`/`?clientId=` and the income/expense list endpoints will fail against a fresh Firestore project.
 - Field additions/removals are additive by default; anything that needs a backfill across existing documents requires a one-off script (none exist in this repo yet).
 
 ## 7. Monitoring & Logging

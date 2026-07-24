@@ -86,18 +86,20 @@ Firestore has no foreign keys or cascading deletes — every reference (`clientI
 
 ## 5. Required Firestore Composite Indexes
 
-**⚠️ Unresolved as of this writing — there is no `firebase.json`/`firestore.indexes.json` in this repo, so these indexes have not been created anywhere.** Firestore requires a composite index for any query that combines more than one equality filter, or an equality filter with a different `orderBy` field. The following queries in the codebase need one:
+Firestore requires a composite index for any query that combines more than one equality filter, or an equality filter with a different `orderBy` field. The following queries in the codebase need one:
 
 | Collection | Query (in code) | Composite index needed |
 |---|---|---|
-| `projects` | `where(userId).where(archived).orderBy(createdAt desc)` (`ProjectsService.findAll`) | `userId` (asc), `archived` (asc), `createdAt` (desc) |
-| `projects` | same, plus `where(status)` or `where(clientId)` | Additional composite variants per filter combination actually used |
+| `projects` | `where(userId).where(archived).orderBy(createdAt desc)` (`ProjectsService.findAll`, no optional filters) | `userId` (asc), `archived` (asc), `createdAt` (desc) |
+| `projects` | same, plus `where(status)` | `userId` (asc), `archived` (asc), `status` (asc), `createdAt` (desc) |
+| `projects` | same, plus `where(clientId)` | `userId` (asc), `archived` (asc), `clientId` (asc), `createdAt` (desc) |
+| `projects` | same, plus both `where(status)` and `where(clientId)` (both filters can be applied together from the Projects page UI) | `userId` (asc), `archived` (asc), `status` (asc), `clientId` (asc), `createdAt` (desc) |
 | `income` | `where(projectId).orderBy(date desc)` (`IncomeService.findAll`) | `projectId` (asc), `date` (desc) |
 | `expenses` | `where(projectId).orderBy(date desc)` (`ExpensesService.findAll`) | `projectId` (asc), `date` (desc) |
 
 Single-field equality queries (e.g. reports/dashboard's `where(userId).get()` with no `orderBy`) don't need a composite index — Firestore auto-indexes every field individually.
 
-**Before first production traffic:** run the app against the real Firestore project and exercise each filtered list endpoint. Firestore returns a `FAILED_PRECONDITION` error with a direct console link to create the missing index on first use — follow those links, or pre-create a `firestore.indexes.json` from the table above and deploy it with `firebase deploy --only firestore:indexes`.
+**Definitions exist, deployment doesn't yet.** All six index definitions above are written out in `/firestore.indexes.json` (repo root), referenced from `/firebase.json`. Writing the file doesn't create the indexes in the real Firestore project by itself — whoever has access to that Firebase project still needs to either run `firebase deploy --only firestore:indexes` (after `firebase login` and setting the project, e.g. via `.firebaserc` or `firebase use <project-id>` — no `.firebaserc` exists in this repo since the project ID wasn't available when this was written), or open each filtered list endpoint once against production and click the console link Firestore prints in its `FAILED_PRECONDITION` error. Do this before relying on `/projects?status=`, `/projects?clientId=`, or any project/income/expense list endpoint in production.
 
 ## 6. Schema Evolution
 
