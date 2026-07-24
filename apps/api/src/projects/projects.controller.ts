@@ -17,8 +17,15 @@ export class ProjectsController {
     @CurrentUser() user: AuthUser,
     @Query('status') status?: string,
     @Query('clientId') clientId?: string,
+    @Query('search') search?: string,
   ) {
-    return { data: await this.projectsService.findAll(user.userId, { status, clientId }) };
+    return {
+      data: await this.projectsService.findAll(user.userId, {
+        status,
+        clientId,
+        search,
+      }),
+    };
   }
 
   @Get(':id')

@@ -8,24 +8,35 @@ import { useToast } from '@/lib/toast-context';
 const inputClass =
   'rounded-md border border-border bg-paper-raised px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent/40';
 
+const INCOME_STATUSES = ['pending', 'paid', 'overdue'];
+
 function IncomeRow({
   income,
   onUpdate,
   onDelete,
 }: {
   income: Income;
-  onUpdate: (id: string, dto: { amount: number; description?: string; date: string }, onDone: () => void) => void;
+  onUpdate: (
+    id: string,
+    dto: { amount: number; description?: string; status: string; date: string },
+    onDone: () => void,
+  ) => void;
   onDelete: (id: string, amount: number) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [amount, setAmount] = useState(String(income.amount));
   const [description, setDescription] = useState(income.description ?? '');
+  const [status, setStatus] = useState(income.status);
   const [date, setDate] = useState(income.date.slice(0, 10));
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!amount || !date) return;
-    onUpdate(income.id, { amount: Number(amount), description: description || undefined, date }, () => setEditing(false));
+    onUpdate(
+      income.id,
+      { amount: Number(amount), description: description || undefined, status, date },
+      () => setEditing(false),
+    );
   }
 
   if (editing) {
@@ -49,6 +60,16 @@ function IncomeRow({
             onChange={(e) => setDate(e.target.value)}
             className={inputClass}
           />
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            aria-label="Payment status"
+            className={inputClass}
+          >
+            {INCOME_STATUSES.map((value) => (
+              <option key={value} value={value}>{value}</option>
+            ))}
+          </select>
           <input
             placeholder="Description"
             aria-label="Description"
@@ -100,17 +121,19 @@ export function IncomeList({ projectId }: { projectId: string }) {
 
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [status, setStatus] = useState(INCOME_STATUSES[0]);
   const [date, setDate] = useState('');
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!amount || !date) return;
     createIncome.mutate(
-      { amount: Number(amount), description: description || undefined, date },
+      { amount: Number(amount), description: description || undefined, status, date },
       {
         onSuccess: () => {
           setAmount('');
           setDescription('');
+          setStatus(INCOME_STATUSES[0]);
           setDate('');
           showToast('Income added.');
         },

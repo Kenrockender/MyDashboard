@@ -2,20 +2,38 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
 export interface ProjectTotals { income: number; expenses: number; profit: number; }
-export interface Project { id: string; name: string; status: string; }
+export interface Project {
+  id: string;
+  name: string;
+  status: string;
+  clientId?: string | null;
+  startDate?: string | null;
+}
 export interface ProjectDetail extends Project { totals: ProjectTotals; }
 
 export interface CreateProjectInput {
   name: string;
-  clientId?: string;
+  clientId?: string | null;
   status?: string;
-  startDate?: string;
+  startDate?: string | null;
 }
 
-export function useProjects(status?: string) {
+export interface ProjectFilters {
+  search?: string;
+  status?: string;
+  clientId?: string;
+}
+
+export function useProjects(filters: ProjectFilters = {}) {
+  const query = new URLSearchParams();
+  if (filters.search) query.set('search', filters.search);
+  if (filters.status) query.set('status', filters.status);
+  if (filters.clientId) query.set('clientId', filters.clientId);
+  const suffix = query.size ? `?${query.toString()}` : '';
+
   return useQuery({
-    queryKey: ['projects', status],
-    queryFn: () => apiClient.get<Project[]>(`/projects${status ? `?status=${status}` : ''}`),
+    queryKey: ['projects', filters],
+    queryFn: () => apiClient.get<Project[]>(`/projects${suffix}`),
   });
 }
 

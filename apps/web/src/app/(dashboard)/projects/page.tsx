@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useProjects, useCreateProject } from '@/hooks/use-projects';
 import { useClients } from '@/hooks/use-clients';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { Badge } from '@/components/ui/badge';
 import { ListSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
@@ -14,7 +15,15 @@ const inputClass =
   'rounded-md border border-border bg-paper-raised px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent/40';
 
 export default function ProjectsPage() {
-  const { data: projects, isLoading, isError, refetch } = useProjects();
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [clientFilter, setClientFilter] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const { data: projects, isLoading, isError, refetch } = useProjects({
+    search: debouncedSearch,
+    status: statusFilter || undefined,
+    clientId: clientFilter || undefined,
+  });
   const { data: clients } = useClients();
   const createProject = useCreateProject();
   const { showToast } = useToast();
@@ -92,6 +101,38 @@ export default function ProjectsPage() {
         </button>
       </form>
 
+      <div className="flex flex-wrap gap-2">
+        <input
+          placeholder="Search projects…"
+          aria-label="Search projects"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className={`${inputClass} min-w-[12rem] flex-1`}
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label="Filter by status"
+          className={inputClass}
+        >
+          <option value="">All statuses</option>
+          {STATUSES.map((s) => (
+            <option key={s} value={s}>{s.replace('_', ' ')}</option>
+          ))}
+        </select>
+        <select
+          value={clientFilter}
+          onChange={(e) => setClientFilter(e.target.value)}
+          aria-label="Filter by client"
+          className={inputClass}
+        >
+          <option value="">All clients</option>
+          {clients?.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      </div>
+
       {isLoading && <ListSkeleton />}
       {isError && <ErrorState message="Couldn't load projects." onRetry={refetch} />}
       {!isLoading && !isError && (
@@ -105,7 +146,14 @@ export default function ProjectsPage() {
                 href={`/projects/${p.id}`}
                 className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-border/20"
               >
-                <span className="font-medium text-ink">{p.name}</span>
+                <span>
+                  <span className="font-medium text-ink">{p.name}</span>
+                  {p.clientId && (
+                    <span className="ml-2 text-sm text-ink-muted">
+                      {clients?.find((client) => client.id === p.clientId)?.name ?? 'Client'}
+                    </span>
+                  )}
+                </span>
                 <Badge>{p.status}</Badge>
               </Link>
             </li>

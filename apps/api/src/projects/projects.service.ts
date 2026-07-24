@@ -41,7 +41,12 @@ export class ProjectsService {
 
   async findAll(
     userId: string,
-    filters: { status?: string; clientId?: string; archived?: boolean },
+    filters: {
+      status?: string;
+      clientId?: string;
+      archived?: boolean;
+      search?: string;
+    },
   ): Promise<Project[]> {
     let query = this.collection
       .where('userId', '==', userId)
@@ -51,7 +56,13 @@ export class ProjectsService {
     if (filters.clientId) query = query.where('clientId', '==', filters.clientId);
 
     const snapshot = await query.orderBy('createdAt', 'desc').get();
-    return snapshot.docs.map((doc) => docToEntity<Project>(doc));
+    const projects = snapshot.docs.map((doc) => docToEntity<Project>(doc));
+
+    // Firestore does not offer case-insensitive substring matching. Filtering
+    // the already user-scoped result keeps project search predictable.
+    if (!filters.search) return projects;
+    const needle = filters.search.toLowerCase();
+    return projects.filter((project) => project.name.toLowerCase().includes(needle));
   }
 
   async findOne(userId: string, id: string) {

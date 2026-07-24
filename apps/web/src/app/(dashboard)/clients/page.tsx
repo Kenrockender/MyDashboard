@@ -15,12 +15,22 @@ function ClientRow({ client }: { client: Client }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(client.name);
   const [email, setEmail] = useState(client.email ?? '');
+  const [phone, setPhone] = useState(client.phone ?? '');
+  const [company, setCompany] = useState(client.company ?? '');
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     updateClient.mutate(
-      { id: client.id, dto: { name: name.trim(), email: email.trim() || undefined } },
+      {
+        id: client.id,
+        dto: {
+          name: name.trim(),
+          email: email.trim() || undefined,
+          phone: phone.trim() || undefined,
+          company: company.trim() || undefined,
+        },
+      },
       {
         onSuccess: () => {
           setEditing(false);
@@ -50,6 +60,21 @@ function ClientRow({ client }: { client: Client }) {
             onChange={(e) => setEmail(e.target.value)}
             className={`${inputClass} flex-1 min-w-[8rem]`}
           />
+          <input
+            type="tel"
+            aria-label="Phone"
+            placeholder="Phone (optional)"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className={`${inputClass} flex-1 min-w-[8rem]`}
+          />
+          <input
+            aria-label="Company"
+            placeholder="Company (optional)"
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+            className={`${inputClass} flex-1 min-w-[8rem]`}
+          />
           <button
             type="submit"
             disabled={updateClient.isPending}
@@ -62,6 +87,8 @@ function ClientRow({ client }: { client: Client }) {
             onClick={() => {
               setName(client.name);
               setEmail(client.email ?? '');
+              setPhone(client.phone ?? '');
+              setCompany(client.company ?? '');
               setEditing(false);
             }}
             className="text-sm font-medium text-ink-muted hover:underline"
@@ -77,7 +104,10 @@ function ClientRow({ client }: { client: Client }) {
     <li className="flex items-center justify-between gap-4 px-4 py-3">
       <div className="text-ink">
         <span>{client.name}</span>
-        {client.email && <span className="ml-2 text-sm text-ink-muted">{client.email}</span>}
+        {client.company && <span className="ml-2 text-sm text-ink-muted">{client.company}</span>}
+        {(client.email || client.phone) && (
+          <span className="ml-2 text-sm text-ink-muted">{[client.email, client.phone].filter(Boolean).join(' · ')}</span>
+        )}
       </div>
       <button
         onClick={() => setEditing(true)}
@@ -98,16 +128,25 @@ export default function ClientsPage() {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [company, setCompany] = useState('');
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     createClient.mutate(
-      { name: name.trim(), email: email.trim() || undefined },
+      {
+        name: name.trim(),
+        email: email.trim() || undefined,
+        phone: phone.trim() || undefined,
+        company: company.trim() || undefined,
+      },
       {
         onSuccess: () => {
           setName('');
           setEmail('');
+          setPhone('');
+          setCompany('');
           showToast('Client added.');
         },
         onError: () => showToast("Couldn't add client — try again.", 'error'),
@@ -134,6 +173,21 @@ export default function ClientsPage() {
           aria-label="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          className={`${inputClass} flex-1 min-w-[10rem]`}
+        />
+        <input
+          type="tel"
+          placeholder="Phone (optional)"
+          aria-label="Phone"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          className={`${inputClass} flex-1 min-w-[10rem]`}
+        />
+        <input
+          placeholder="Company (optional)"
+          aria-label="Company"
+          value={company}
+          onChange={(e) => setCompany(e.target.value)}
           className={`${inputClass} flex-1 min-w-[10rem]`}
         />
         <button

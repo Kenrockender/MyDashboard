@@ -8,7 +8,24 @@ describe('ProjectsService.findOne totals', () => {
 
   beforeEach(async () => {
     const firebase = createFakeFirestore({
-      projects: [{ id: 'proj_1', userId: 'user_1', name: 'Site', clientId: null }],
+      projects: [
+        {
+          id: 'proj_1',
+          userId: 'user_1',
+          name: 'Website redesign',
+          clientId: null,
+          archived: false,
+          createdAt: '2026-07-01T00:00:00.000Z',
+        },
+        {
+          id: 'proj_2',
+          userId: 'user_1',
+          name: 'Mobile app',
+          clientId: 'client_1',
+          archived: false,
+          createdAt: '2026-07-02T00:00:00.000Z',
+        },
+      ],
       income: [
         { id: 'inc_1', projectId: 'proj_1', amount: 2000 },
         { id: 'inc_2', projectId: 'proj_1', amount: 2500 },
@@ -29,5 +46,11 @@ describe('ProjectsService.findOne totals', () => {
 
   it('returns null for a project owned by someone else', async () => {
     expect(await service.findOne('user_2', 'proj_1')).toBeNull();
+  });
+
+  it('searches project names within the authenticated user projects', async () => {
+    const result = await service.findAll('user_1', { search: 'WEB' });
+
+    expect(result.map((project) => project.id)).toEqual(['proj_1']);
   });
 });
