@@ -10,7 +10,7 @@ interface DatedAmount {
   date: Date | string;
 }
 
-function monthKey(date: Date | string): string {
+export function monthKey(date: Date | string): string {
   const d = new Date(date);
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }

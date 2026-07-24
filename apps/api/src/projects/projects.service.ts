@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { calculateProfit } from '../common/calculate-profit';
 import { CreateProjectDto } from './dto/create-project.dto';
 
 @Injectable()
@@ -24,12 +25,9 @@ export class ProjectsService {
     });
     if (!project) return null;
 
-    const totalIncome = project.income.reduce((sum: number, i: { amount: number }) => sum + Number(i.amount), 0);
-    const totalExpenses = project.expenses.reduce((sum: number, e: { amount: number }) => sum + Number(e.amount), 0);
-
     return {
       ...project,
-      totals: { income: totalIncome, expenses: totalExpenses, profit: totalIncome - totalExpenses },
+      totals: calculateProfit(project.income, project.expenses),
     };
   }
 

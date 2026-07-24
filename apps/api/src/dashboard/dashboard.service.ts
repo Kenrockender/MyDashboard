@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { calculateProfit } from '../common/calculate-profit';
 import { calculateMonthlyTrend } from './calculate-monthly-trend';
 import { calculateRecentActivity } from './calculate-recent-activity';
 
@@ -19,13 +20,12 @@ export class DashboardService {
     const allIncome = projects.flatMap((p) => p.income.map((i) => ({ ...i, projectId: p.id })));
     const allExpenses = projects.flatMap((p) => p.expenses.map((e) => ({ ...e, projectId: p.id })));
 
-    const totalRevenue = allIncome.reduce((sum, i) => sum + Number(i.amount), 0);
-    const totalExpenses = allExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+    const { income: totalRevenue, expenses: totalExpenses, profit: netProfit } = calculateProfit(allIncome, allExpenses);
 
     return {
       totalRevenue,
       totalExpenses,
-      netProfit: totalRevenue - totalExpenses,
+      netProfit,
       activeProjects,
       completedProjects,
       monthlyTrend: calculateMonthlyTrend(allIncome, allExpenses),
