@@ -7,15 +7,15 @@
 
 ## 1. Overview
 
-Deployment target is three managed services chosen for zero/low cost at personal-project scale and minimal ops overhead: Vercel (frontend), Railway (backend API), Neon (Postgres). The repo is an npm-workspaces monorepo (`apps/web`, `apps/api` — see `plan.md` Phase 0), deployed as two independent services.
+Deployment target: everything on Vercel, plus Neon (Postgres). The repo is an npm-workspaces monorepo (`apps/web`, `apps/api` — see `plan.md` Phase 0), deployed as two independent Vercel projects. The NestJS API runs as a Vercel Function (Node.js runtime) via `apps/api/api/index.ts`, which wraps the Nest app with the Express adapter and a catch-all `vercel.json` rewrite — not as a long-lived server. (Originally scoped for Vercel + Railway; moved to all-Vercel per project decision.)
 
 ## 2. Hosting Architecture
 
 | Component | Service | Notes |
 |---|---|---|
 | Frontend | Vercel | Root Directory set to `apps/web`; auto-deploys from `main`, preview deploys per PR |
-| Backend API | Railway | Service root set to `apps/api`; auto-deploys from `main` |
-| Database | Neon | Serverless Postgres; supports branch databases for previews |
+| Backend API | Vercel | Root Directory set to `apps/api`; runs as a Node.js serverless function (`apps/api/api/index.ts`), not a long-lived process — see §5a |
+| Database | Neon | Serverless Postgres; supports branch databases for previews. Use the **pooled** connection string (`-pooler` host) for `DATABASE_URL`, not the direct one — see §5a |
 | File storage (future) | Cloudflare R2 | Not needed until attachments ship |
 
 ## 3. Environments
@@ -23,8 +23,8 @@ Deployment target is three managed services chosen for zero/low cost at personal
 | Environment | Frontend | Backend | Database |
 |---|---|---|---|
 | Local | `next dev` | `nest start --watch` | Local Postgres or a Neon dev branch |
-| Preview | Vercel preview deploy | Railway preview environment (or manual) | Neon branch DB per PR |
-| Production | Vercel production | Railway production service | Neon main branch |
+| Preview | Vercel preview deploy | Vercel preview deploy (function) | Neon branch DB per PR |
+| Production | Vercel production | Vercel production (function) | Neon main branch |
 
 ## 4. CI/CD Pipeline
 
@@ -50,18 +50,25 @@ jobs:
       - run: npm run build --workspaces
 ```
 
-Vercel and Railway both deploy on push to `main` natively via their GitHub integrations once connected — no separate deploy job needed here.
+Both Vercel projects (frontend and backend) deploy on push to `main` natively via their GitHub integrations once connected — no separate deploy job needed here.
 
 ## 5. Environment Variables
 
 | Variable | Used by | Example |
 |---|---|---|
-| `DATABASE_URL` | Backend (Prisma) | `postgresql://user:pass@host/db` |
+| `DATABASE_URL` | Backend (Prisma) | Neon **pooled** connection string, `...-pooler.<region>.aws.neon.tech/...` — see §5a |
 | `CLERK_SECRET_KEY` | Backend | Clerk dashboard |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Frontend | Clerk dashboard |
-| `NEXT_PUBLIC_API_URL` | Frontend | `https://api.<yourdomain>.com/api` |
+| `NEXT_PUBLIC_API_URL` | Frontend | `https://<api-project>.vercel.app/api` |
 
-Store these in Vercel's and Railway's environment variable settings per environment — never commit a `.env` with real values. Commit a blank `.env.example` instead.
+Store these in each Vercel project's environment variable settings per environment — never commit a `.env` with real values. Commit a blank `.env.example` instead.
+
+## 5a. Running NestJS on Vercel (serverless, not a long-lived server)
+
+- Entry point: `apps/api/api/index.ts` creates the Nest app once with the Express adapter (`app.setGlobalPrefix('api')`, `app.enableCors()`), caches it across warm invocations, and hands each request to the underlying Express instance. `apps/api/vercel.json` rewrites every path to this one function so Nest's own router handles the full original path.
+- `src/main.ts` (`app.listen(...)`) is only used for local dev (`nest start`) — Vercel never calls it.
+- **Connection pooling is mandatory**: each concurrent function invocation can open its own Postgres connection, and Postgres has a low direct-connection limit. Use Neon's pooled connection string (the `-pooler` host, PgBouncer-backed) for `DATABASE_URL` in every Vercel environment, not the direct one used for local `prisma migrate dev`.
+- Cold starts include re-establishing the Prisma connection; expect the first request after idle to be slower than a warm one.
 
 ## 6. Database Migrations in Production
 
@@ -75,7 +82,7 @@ Store these in Vercel's and Railway's environment variable settings per environm
 |---|---|---|
 | Error tracking | Sentry (free tier) | Wire into both Next.js and NestJS |
 | Frontend analytics | Vercel Analytics | Built in, no extra setup |
-| API logs | Railway's built-in log viewer | Sufficient at this scale; revisit if volume grows |
+| API logs | Vercel's Function logs (Dashboard → Deployments → Functions) | Sufficient at this scale; revisit if volume grows |
 
 ## 8. Backup & Disaster Recovery
 
@@ -85,14 +92,13 @@ Store these in Vercel's and Railway's environment variable settings per environm
 ## 9. Domain, SSL, DNS
 
 - Point a custom domain at Vercel for the frontend; Vercel issues and renews SSL automatically.
-- Point an `api.` subdomain at Railway for the backend, same SSL handling.
+- Point an `api.` subdomain at the backend's Vercel project, same SSL handling.
 
 ## 10. Rough Cost Estimate (personal-project scale)
 
 | Service | Free tier sufficient? |
 |---|---|
-| Vercel | Yes, Hobby tier |
-| Railway | Small monthly cost after free trial credit |
+| Vercel | Yes, Hobby tier (both projects) |
 | Neon | Yes, free tier covers single-user data volume |
 | Clerk | Yes, free tier covers a handful of users |
 
