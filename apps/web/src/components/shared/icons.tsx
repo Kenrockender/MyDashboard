@@ -1,9 +1,12 @@
 export function LogoMark({ className = "h-6 w-6" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
-      <rect x="3.5" y="2.5" width="17" height="19" rx="2" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M7.5 8h9M7.5 12h9M7.5 16h5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
+    <span
+      className={`inline-flex items-center justify-center ${className}`}
+      role="img"
+      aria-label="Ledger logo"
+    >
+      <span className="text-[1.25rem] leading-none">💸</span>
+    </span>
   );
 }
 
