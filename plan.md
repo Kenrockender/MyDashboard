@@ -896,6 +896,18 @@ git commit -m "feat: add project list and detail UI with computed totals"
 - [x] Deployed and reachable, behind real auth (not the Task 0.4 stub) — auth is Firebase Auth, not the Clerk originally planned. Confirmed live: both Vercel projects (`mydashboard-web`, `mydashboard-api`) build and serve from GitHub `master` via git integration; API's public health check returns 200, a protected route correctly returns 401, and Firestore composite indexes (03-Database-Design.md §5) are deployed. Along the way, fixed real production bugs that had nothing to do with the code being wrong per se: `jose` 6.x (pulled in by `firebase-admin/auth` via `jwks-rsa`) is ESM-only and crashed every single request until pinned to `^4.15.9` via a root `package.json` override; the Vercel projects' Root Directory settings and `NEXT_PUBLIC_FIREBASE_*` / `FIREBASE_*` environment variables weren't set at all (the only prior deploys were one-off CLI pushes, not git-integrated); and `FIREBASE_PRIVATE_KEY` needed its surrounding quotes stripped before being stored as a Vercel env var. No custom domain is configured — reachable only at the `*.vercel.app` URLs for now.
 - [ ] Spreadsheets are no longer needed for project finances — the actual success metric from the PRD. Not something a repo/code check can confirm — this is a real-world usage outcome to assess once the app is actually in daily use.
 
+## Post-MVP Hardening & Ops (added after "what's still missing?" review)
+
+- [x] **API security headers** — `helmet()` applied globally in `create-app.ts`.
+- [x] **CORS locked down** — `enableCors()` now reads an allowlist from `CORS_ORIGINS` (comma-separated) instead of allowing every origin; defaults to `http://localhost:3000` for dev. Set `CORS_ORIGINS` to the deployed web URL in Vercel.
+- [x] **Rate limiting** — `@nestjs/throttler` registered as a global guard (120 req/min/IP). Note: in-memory store is per-serverless-instance on Vercel, so it's a floor, not a hard global cap.
+- [x] **Centralized error handling + logging** — `AllExceptionsFilter` (`common/all-exceptions.filter.ts`) turns every unhandled error into a consistent `{ error }` JSON envelope, logs 5xx with stack traces and 4xx as warnings, and never leaks internal error detail. This is the single hook point for wiring an external error tracker (Sentry) later — forward `exception` from there once a `SENTRY_DSN` is available.
+- [x] **JSON health endpoint** — `GET /api/health` returns `{ status, uptime, timestamp }` (public), suitable for uptime monitors. Covered by unit + e2e tests.
+- [x] **Firestore backup** — `npm run backup` (in `apps/api`) exports every collection to a timestamped JSON file under `backups/` (gitignored). Schedule via cron/CI for regular off-site copies.
+- [ ] **External error tracker (Sentry) not wired** — the filter hook exists but no DSN is configured; needs a Sentry account + `SENTRY_DSN` env var.
+- [ ] **Dashboard performance still unmeasured** (see NFR above) — unchanged; needs a real measurement against production data volume.
+- [ ] **Custom domain** — still on `*.vercel.app`.
+
 ## Self-Review Notes
 
 - **Spec coverage:** Phases 0-1 fully cover FR-1.x (Projects) and FR-2.x (Clients). Phases 2-4 map to FR-3.x through FR-6.x — intentionally scoped rather than task-level, per "How to use this plan" above.

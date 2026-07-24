@@ -69,6 +69,14 @@ describe('API (e2e)', () => {
       .expect('Hello World!');
   });
 
+  it('serves the JSON health endpoint without auth', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/health')
+      .expect(200);
+    expect(res.body.status).toBe('ok');
+    expect(typeof res.body.uptime).toBe('number');
+  });
+
   it('rejects protected routes without a bearer token', async () => {
     await request(app.getHttpServer()).get('/api/projects').expect(401);
   });
