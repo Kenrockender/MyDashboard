@@ -18,7 +18,9 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "backup": "ts-node scripts/backup-firestore.ts"
+    "backup": "ts-node scripts/backup-firestore.ts",
+    "seed": "ts-node scripts/seed-demo.ts",
+    "unseed": "ts-node scripts/unseed-demo.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
