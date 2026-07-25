@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
@@ -26,6 +26,10 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: "Ledger — Project Finance Dashboard",
   description: "Track income, expenses, and profitability across your projects.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#17150f",
 };
 
 export default function RootLayout({
