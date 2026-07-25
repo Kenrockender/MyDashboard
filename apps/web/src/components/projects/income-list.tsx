@@ -4,10 +4,11 @@ import { useIncome, useCreateIncome, useUpdateIncome, useDeleteIncome, type Inco
 import { Badge } from '@/components/ui/badge';
 import { Button, LinkButton } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
+import { CurrencySelect } from '@/components/ui/currency-select';
 import { ListSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/lib/toast-context';
-import { inputClass, money } from '@/lib/ui';
+import { inputClass, money, type Currency } from '@/lib/ui';
 
 const INCOME_STATUSES = ['pending', 'paid', 'overdue'];
 
@@ -19,13 +20,14 @@ function IncomeRow({
   income: Income;
   onUpdate: (
     id: string,
-    dto: { amount: number; description?: string; status: string; date: string },
+    dto: { amount: number; currency: Currency; description?: string; status: string; date: string },
     onDone: () => void,
   ) => void;
-  onDelete: (id: string, amount: number) => void;
+  onDelete: (id: string, amount: number, currency: Currency) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [amount, setAmount] = useState(String(income.amount));
+  const [currency, setCurrency] = useState<Currency>(income.currency);
   const [description, setDescription] = useState(income.description ?? '');
   const [status, setStatus] = useState(income.status);
   const [date, setDate] = useState(income.date.slice(0, 10));
@@ -35,7 +37,7 @@ function IncomeRow({
     if (!amount || !date) return;
     onUpdate(
       income.id,
-      { amount: Number(amount), description: description || undefined, status, date },
+      { amount: Number(amount), currency, description: description || undefined, status, date },
       () => setEditing(false),
     );
   }
@@ -54,6 +56,7 @@ function IncomeRow({
               className={inputClass}
             />
           </Field>
+          <CurrencySelect value={currency} onChange={setCurrency} />
           <Field label="Date">
             <input
               type="date"
@@ -101,7 +104,7 @@ function IncomeRow({
       <div className="flex flex-none items-center gap-4">
         <div className="text-right">
           <div className="font-tabular font-mono text-sm text-ink">
-            {money(Number(income.amount))}
+            {money(Number(income.amount), income.currency)}
           </div>
           <Badge>{income.status}</Badge>
         </div>
@@ -109,8 +112,8 @@ function IncomeRow({
           <LinkButton onClick={() => setEditing(true)}>Edit</LinkButton>
           <LinkButton
             tone="negative"
-            onClick={() => onDelete(income.id, Number(income.amount))}
-            aria-label={`Delete income of ${money(Number(income.amount))}`}
+            onClick={() => onDelete(income.id, Number(income.amount), income.currency)}
+            aria-label={`Delete income of ${money(Number(income.amount), income.currency)}`}
           >
             Delete
           </LinkButton>
@@ -128,6 +131,7 @@ export function IncomeList({ projectId }: { projectId: string }) {
   const { showToast } = useToast();
 
   const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState<Currency>('USD');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState(INCOME_STATUSES[0]);
   const [date, setDate] = useState('');
@@ -136,7 +140,7 @@ export function IncomeList({ projectId }: { projectId: string }) {
     e.preventDefault();
     if (!amount || !date) return;
     createIncome.mutate(
-      { amount: Number(amount), description: description || undefined, status, date },
+      { amount: Number(amount), currency, description: description || undefined, status, date },
       {
         onSuccess: () => {
           setAmount('');
@@ -152,7 +156,7 @@ export function IncomeList({ projectId }: { projectId: string }) {
 
   function handleUpdate(
     id: string,
-    dto: { amount: number; description?: string; status: string; date: string },
+    dto: { amount: number; currency: Currency; description?: string; status: string; date: string },
     onDone: () => void,
   ) {
     updateIncome.mutate(
@@ -167,8 +171,8 @@ export function IncomeList({ projectId }: { projectId: string }) {
     );
   }
 
-  function handleDelete(id: string, amount: number) {
-    if (!window.confirm(`Delete this income of ${money(amount)}?`)) return;
+  function handleDelete(id: string, amount: number, currency: Currency) {
+    if (!window.confirm(`Delete this income of ${money(amount, currency)}?`)) return;
     deleteIncome.mutate(id, {
       onSuccess: () => showToast('Income deleted.'),
       onError: () => showToast("Couldn't delete income — try again.", 'error'),
@@ -193,6 +197,7 @@ export function IncomeList({ projectId }: { projectId: string }) {
             className={inputClass}
           />
         </Field>
+        <CurrencySelect value={currency} onChange={setCurrency} />
         <Field label="Date">
           <input
             type="date"
@@ -202,7 +207,7 @@ export function IncomeList({ projectId }: { projectId: string }) {
             className={inputClass}
           />
         </Field>
-        <Field label="Description" className="sm:col-span-2">
+        <Field label="Description">
           <input
             placeholder="What was invoiced"
             value={description}

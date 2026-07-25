@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { StatGroup, type Stat } from '@/components/ui/stat-group';
 import { Skeleton, StatGroupSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
-import { moneyRounded, percent } from '@/lib/ui';
+import { groupByCurrency, moneyRounded, percent } from '@/lib/ui';
 
 const AS_OF = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' });
 
@@ -38,30 +38,13 @@ export default function DashboardPage() {
 
   if (!summary) return <p className="text-sm text-ink-muted">No data yet.</p>;
 
-  const expenseShare =
-    summary.totalRevenue > 0 ? summary.totalExpenses / summary.totalRevenue : 0;
-  const margin = summary.totalRevenue > 0 ? summary.netProfit / summary.totalRevenue : 0;
+  // A brand-new account has no totals yet — fall back to one empty USD group so
+  // the layout still shows $0 rather than nothing.
+  const totalsGroups =
+    summary.totals.length > 0 ? summary.totals : [{ currency: 'USD' as const, income: 0, expenses: 0, profit: 0 }];
+  const multiCurrency = totalsGroups.length > 1;
 
-  const stats: Stat[] = [
-    { label: 'Total Revenue', value: moneyRounded(summary.totalRevenue) },
-    {
-      label: 'Total Expenses',
-      value: moneyRounded(summary.totalExpenses),
-      caption: summary.totalRevenue > 0 ? `${percent(expenseShare)} of revenue` : undefined,
-    },
-    {
-      label: 'Net Profit',
-      value: moneyRounded(summary.netProfit),
-      tone: 'accent',
-      ruled: true,
-      caption: summary.totalRevenue > 0 ? `${percent(margin)} margin` : undefined,
-    },
-    {
-      label: 'Active Projects',
-      value: summary.activeProjects,
-      caption: `${summary.completedProjects} completed`,
-    },
-  ];
+  const trendByCurrency = groupByCurrency(summary.monthlyTrend, (t) => t.currency);
 
   return (
     <div className="space-y-6">
@@ -71,10 +54,54 @@ export default function DashboardPage() {
         aside={<AsOf />}
       />
 
-      <StatGroup stats={stats} />
+      <div className="space-y-4">
+        {totalsGroups.map((t, i) => {
+          const stats: Stat[] = [
+            { label: 'Total Revenue', value: moneyRounded(t.income, t.currency) },
+            {
+              label: 'Total Expenses',
+              value: moneyRounded(t.expenses, t.currency),
+              caption: t.income > 0 ? `${percent(t.expenses / t.income)} of revenue` : undefined,
+            },
+            {
+              label: 'Net Profit',
+              value: moneyRounded(t.profit, t.currency),
+              tone: 'accent',
+              ruled: true,
+              caption: t.income > 0 ? `${percent(t.profit / t.income)} margin` : undefined,
+            },
+          ];
+          // Project counts are currency-agnostic, so they only belong on the first group.
+          if (i === 0) {
+            stats.push({
+              label: 'Active Projects',
+              value: summary.activeProjects,
+              caption: `${summary.completedProjects} completed`,
+            });
+          }
+          return (
+            <div key={t.currency}>
+              {multiCurrency && (
+                <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+                  {t.currency}
+                </div>
+              )}
+              <StatGroup stats={stats} />
+            </div>
+          );
+        })}
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.55fr_1fr] lg:items-start">
-        <TrendChart data={summary.monthlyTrend} />
+        <div className="space-y-6">
+          {trendByCurrency.length > 0 ? (
+            trendByCurrency.map(({ currency, items }) => (
+              <TrendChart key={currency} data={items} currency={currency} showCurrencyTag={multiCurrency} />
+            ))
+          ) : (
+            <TrendChart data={[]} currency="USD" />
+          )}
+        </div>
 
         <div className="overflow-hidden rounded-[14px] border border-border bg-paper-raised">
           <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-4">

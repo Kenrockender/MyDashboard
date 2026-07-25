@@ -3,6 +3,7 @@ import { FirebaseService } from '../firebase/firebase.service';
 import { COLLECTIONS, docToEntity } from '../firebase/collections';
 import { calculateProfit } from '../common/calculate-profit';
 import { monthKey } from '../dashboard/calculate-monthly-trend';
+import { Currency } from '../common/currencies';
 import type { Client } from '../clients/clients.service';
 import type { Project } from '../projects/projects.service';
 import type { Income } from '../income/income.service';
@@ -33,13 +34,13 @@ export class ReportsService {
     const { income, expenses } = await this.getAllRecords(userId);
     const monthIncome = income.filter((i) => monthKey(i.date) === month);
     const monthExpenses = expenses.filter((e) => monthKey(e.date) === month);
-    const totals = calculateProfit(monthIncome, monthExpenses);
-    return {
+    return calculateProfit(monthIncome, monthExpenses).map((totals) => ({
       month,
+      currency: totals.currency,
       revenue: totals.income,
       expenses: totals.expenses,
       profit: totals.profit,
-    };
+    }));
   }
 
   async getProfitability(userId: string) {
@@ -52,33 +53,49 @@ export class ReportsService {
     ]);
 
     return projectSnap.docs
-      .map((doc) => {
+      .flatMap((doc) => {
         const project = docToEntity<Project>(doc);
-        const totals = calculateProfit(
+        const rawTotals = calculateProfit(
           income.filter((i) => i.projectId === project.id),
           expenses.filter((e) => e.projectId === project.id),
         );
-        return {
+        // A project with no income/expenses at all still gets one $0 row so it
+        // stays visible in the report, instead of disappearing entirely.
+        const totals =
+          rawTotals.length > 0
+            ? rawTotals
+            : [{ currency: 'USD' as const, income: 0, expenses: 0, profit: 0 }];
+        return totals.map((t) => ({
           projectId: project.id,
           name: project.name,
-          income: totals.income,
-          expenses: totals.expenses,
-          profit: totals.profit,
-          margin: totals.income > 0 ? totals.profit / totals.income : 0,
-        };
+          currency: t.currency,
+          income: t.income,
+          expenses: t.expenses,
+          profit: t.profit,
+          margin: t.income > 0 ? t.profit / t.income : 0,
+        }));
       })
       .sort((a, b) => b.profit - a.profit);
   }
 
   async getExpenseBreakdown(userId: string) {
     const { expenses } = await this.getAllRecords(userId);
-    const groups = new Map<string, number>();
+    const groups = new Map<
+      string,
+      { category: string; currency: Currency; total: number }
+    >();
     for (const e of expenses) {
-      groups.set(e.category, (groups.get(e.category) ?? 0) + Number(e.amount));
+      const currency = e.currency ?? 'USD';
+      const key = `${e.category}:${currency}`;
+      const entry = groups.get(key) ?? {
+        category: e.category,
+        currency,
+        total: 0,
+      };
+      entry.total += Number(e.amount);
+      groups.set(key, entry);
     }
-    return [...groups.entries()]
-      .map(([category, total]) => ({ category, total }))
-      .sort((a, b) => b.total - a.total);
+    return [...groups.values()].sort((a, b) => b.total - a.total);
   }
 
   async getRevenueBreakdown(userId: string) {
@@ -100,24 +117,32 @@ export class ReportsService {
 
     const groups = new Map<
       string,
-      { clientId: string | null; clientName: string; total: number }
+      {
+        clientId: string | null;
+        clientName: string;
+        currency: Currency;
+        total: number;
+      }
     >();
     for (const doc of projectSnap.docs) {
       const project = docToEntity<Project>(doc);
-      const key = project.clientId ?? 'none';
-      const projectTotal = income
-        .filter((i) => i.projectId === project.id)
-        .reduce((sum, i) => sum + Number(i.amount), 0);
+      const clientKey = project.clientId ?? 'none';
+      const clientName = project.clientId
+        ? (clientNames.get(project.clientId) ?? 'No client')
+        : 'No client';
 
-      const entry = groups.get(key) ?? {
-        clientId: project.clientId ?? null,
-        clientName: project.clientId
-          ? (clientNames.get(project.clientId) ?? 'No client')
-          : 'No client',
-        total: 0,
-      };
-      entry.total += projectTotal;
-      groups.set(key, entry);
+      for (const i of income.filter((i) => i.projectId === project.id)) {
+        const currency = i.currency ?? 'USD';
+        const key = `${clientKey}:${currency}`;
+        const entry = groups.get(key) ?? {
+          clientId: project.clientId ?? null,
+          clientName,
+          currency,
+          total: 0,
+        };
+        entry.total += Number(i.amount);
+        groups.set(key, entry);
+      }
     }
 
     return [...groups.values()].sort((a, b) => b.total - a.total);

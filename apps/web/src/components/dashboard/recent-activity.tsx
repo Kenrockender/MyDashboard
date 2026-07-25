@@ -46,7 +46,7 @@ export function RecentActivity({ items }: { items: RecentActivityEntry[] }) {
               }`}
             >
               {income ? '+' : '−'}
-              {money(item.amount)}
+              {money(item.amount, item.currency)}
             </span>
           </li>
         );

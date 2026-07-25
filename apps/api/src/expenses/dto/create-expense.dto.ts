@@ -6,6 +6,7 @@ import {
   IsIn,
   IsDateString,
 } from 'class-validator';
+import { CURRENCIES, type Currency } from '../../common/currencies';
 
 const EXPENSE_CATEGORIES = [
   'hosting',
@@ -24,6 +25,10 @@ export class CreateExpenseDto {
 
   @IsIn(EXPENSE_CATEGORIES)
   category: string;
+
+  @IsOptional()
+  @IsIn(CURRENCIES)
+  currency?: Currency;
 
   @IsOptional()
   @IsString()

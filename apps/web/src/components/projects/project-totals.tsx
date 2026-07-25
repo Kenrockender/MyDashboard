@@ -1,15 +1,27 @@
-import type { ProjectTotals } from '@/hooks/use-projects';
+import type { ProfitTotals } from '@/hooks/use-projects';
 import { StatRow } from '@/components/ui/stat-group';
 import { moneyRounded } from '@/lib/ui';
 
-export function ProjectTotalsCard({ totals }: { totals: ProjectTotals }) {
+/** One StatRow per currency present — most projects have just one, so this renders as it always did. */
+export function ProjectTotalsCard({ totals }: { totals: ProfitTotals[] }) {
   return (
-    <StatRow
-      stats={[
-        { label: 'Income', value: moneyRounded(totals.income) },
-        { label: 'Expenses', value: moneyRounded(totals.expenses), tone: 'negative' },
-        { label: 'Profit', value: moneyRounded(totals.profit), tone: 'accent', ruled: true },
-      ]}
-    />
+    <div className="space-y-3">
+      {totals.map((t) => (
+        <div key={t.currency}>
+          {totals.length > 1 && (
+            <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+              {t.currency}
+            </div>
+          )}
+          <StatRow
+            stats={[
+              { label: 'Income', value: moneyRounded(t.income, t.currency) },
+              { label: 'Expenses', value: moneyRounded(t.expenses, t.currency), tone: 'negative' },
+              { label: 'Profit', value: moneyRounded(t.profit, t.currency), tone: 'accent', ruled: true },
+            ]}
+          />
+        </div>
+      ))}
+    </div>
   );
 }

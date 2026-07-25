@@ -6,9 +6,7 @@ describe('DashboardController', () => {
   let controller: DashboardController;
   const mockService = {
     getSummary: jest.fn().mockResolvedValue({
-      totalRevenue: 4500,
-      totalExpenses: 320,
-      netProfit: 4180,
+      totals: [{ currency: 'USD', income: 4500, expenses: 320, profit: 4180 }],
       activeProjects: 1,
       completedProjects: 0,
       monthlyTrend: [],
@@ -26,7 +24,7 @@ describe('DashboardController', () => {
 
   it('returns the dashboard summary for the current user', async () => {
     const result = await controller.getSummary({ userId: 'user_1' });
-    expect(result.data.netProfit).toBe(4180);
+    expect(result.data.totals[0].profit).toBe(4180);
     expect(mockService.getSummary).toHaveBeenCalledWith('user_1');
   });
 });

@@ -26,12 +26,14 @@ export class ProjectsController {
     @Query('status') status?: string,
     @Query('clientId') clientId?: string,
     @Query('search') search?: string,
+    @Query('dealType') dealType?: string,
   ) {
     return {
       data: await this.projectsService.findAll(user.userId, {
         status,
         clientId,
         search,
+        dealType,
       }),
     };
   }

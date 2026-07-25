@@ -1,5 +1,8 @@
+import { Currency } from '../common/currencies';
+
 export interface MonthlyTrendEntry {
   month: string;
+  currency: Currency;
   revenue: number;
   expenses: number;
   profit: number;
@@ -7,6 +10,7 @@ export interface MonthlyTrendEntry {
 
 interface DatedAmount {
   amount: number | { toString(): string };
+  currency?: Currency;
   date: Date | string;
 }
 
@@ -15,30 +19,44 @@ export function monthKey(date: Date | string): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
+function bucketKey(month: string, currency: Currency): string {
+  return `${month}:${currency}`;
+}
+
 export function calculateMonthlyTrend(
   income: DatedAmount[],
   expenses: DatedAmount[],
 ): MonthlyTrendEntry[] {
-  const months = new Map<string, { revenue: number; expenses: number }>();
+  const buckets = new Map<
+    string,
+    { month: string; currency: Currency; revenue: number; expenses: number }
+  >();
+
+  const entry = (month: string, currency: Currency) => {
+    const key = bucketKey(month, currency);
+    const existing = buckets.get(key);
+    if (existing) return existing;
+    const created = { month, currency, revenue: 0, expenses: 0 };
+    buckets.set(key, created);
+    return created;
+  };
 
   for (const i of income) {
-    const key = monthKey(i.date);
-    const entry = months.get(key) ?? { revenue: 0, expenses: 0 };
-    entry.revenue += Number(i.amount);
-    months.set(key, entry);
+    entry(monthKey(i.date), i.currency ?? 'USD').revenue += Number(i.amount);
   }
 
   for (const e of expenses) {
-    const key = monthKey(e.date);
-    const entry = months.get(key) ?? { revenue: 0, expenses: 0 };
-    entry.expenses += Number(e.amount);
-    months.set(key, entry);
+    entry(monthKey(e.date), e.currency ?? 'USD').expenses += Number(e.amount);
   }
 
-  return [...months.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, { revenue, expenses }]) => ({
+  return [...buckets.values()]
+    .sort(
+      (a, b) =>
+        a.month.localeCompare(b.month) || a.currency.localeCompare(b.currency),
+    )
+    .map(({ month, currency, revenue, expenses }) => ({
       month,
+      currency,
       revenue,
       expenses,
       profit: revenue - expenses,

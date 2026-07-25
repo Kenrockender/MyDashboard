@@ -54,8 +54,34 @@ describe('ReportsService', () => {
       });
 
       expect(await service.getExpenseBreakdown('user_1')).toEqual([
-        { category: 'hosting', total: 80 },
-        { category: 'domain', total: 20 },
+        { category: 'hosting', currency: 'USD', total: 80 },
+        { category: 'domain', currency: 'USD', total: 20 },
+      ]);
+    });
+
+    it('keeps different currencies in the same category as separate rows', async () => {
+      const service = await buildService({
+        expenses: [
+          {
+            id: 'e1',
+            userId: 'user_1',
+            category: 'hosting',
+            amount: 50,
+            currency: 'USD',
+          },
+          {
+            id: 'e2',
+            userId: 'user_1',
+            category: 'hosting',
+            amount: 500000,
+            currency: 'IDR',
+          },
+        ],
+      });
+
+      expect(await service.getExpenseBreakdown('user_1')).toEqual([
+        { category: 'hosting', currency: 'IDR', total: 500000 },
+        { category: 'hosting', currency: 'USD', total: 50 },
       ]);
     });
   });
@@ -87,12 +113,15 @@ describe('ReportsService', () => {
         ],
       });
 
-      expect(await service.getMonthly('user_1', '2026-06')).toEqual({
-        month: '2026-06',
-        revenue: 2000,
-        expenses: 100,
-        profit: 1900,
-      });
+      expect(await service.getMonthly('user_1', '2026-06')).toEqual([
+        {
+          month: '2026-06',
+          currency: 'USD',
+          revenue: 2000,
+          expenses: 100,
+          profit: 1900,
+        },
+      ]);
     });
   });
 
@@ -106,7 +135,7 @@ describe('ReportsService', () => {
       });
 
       expect(await service.getExpenseBreakdown('user_1')).toEqual([
-        { category: 'hosting', total: 50 },
+        { category: 'hosting', currency: 'USD', total: 50 },
       ]);
     });
   });

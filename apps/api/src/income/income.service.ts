@@ -3,12 +3,14 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { FirebaseService } from '../firebase/firebase.service';
 import { COLLECTIONS, docToEntity } from '../firebase/collections';
 import { CreateIncomeDto } from './dto/create-income.dto';
+import { Currency } from '../common/currencies';
 
 export interface Income {
   id: string;
   userId: string;
   projectId: string;
   amount: number;
+  currency: Currency;
   description?: string;
   status: string;
   date: Date;
@@ -43,6 +45,7 @@ export class IncomeService {
       userId,
       projectId,
       amount: dto.amount,
+      currency: dto.currency ?? 'USD',
       description: dto.description ?? null,
       status: dto.status ?? 'pending',
       date: Timestamp.fromDate(new Date(dto.date)),
@@ -73,6 +76,7 @@ export class IncomeService {
 
     const patch: Record<string, unknown> = {};
     if (dto.amount !== undefined) patch.amount = dto.amount;
+    if (dto.currency !== undefined) patch.currency = dto.currency;
     if (dto.description !== undefined) patch.description = dto.description;
     if (dto.status !== undefined) patch.status = dto.status;
     if (dto.date !== undefined)

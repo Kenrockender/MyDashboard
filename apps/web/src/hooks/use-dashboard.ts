@@ -1,8 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import type { Currency } from '@/lib/ui';
+
+export interface ProfitTotals {
+  currency: Currency;
+  income: number;
+  expenses: number;
+  profit: number;
+}
 
 export interface MonthlyTrendEntry {
   month: string;
+  currency: Currency;
   revenue: number;
   expenses: number;
   profit: number;
@@ -12,13 +21,12 @@ export interface RecentActivityEntry {
   type: 'income' | 'expense';
   projectId: string;
   amount: number;
+  currency: Currency;
   date: string;
 }
 
 export interface DashboardSummary {
-  totalRevenue: number;
-  totalExpenses: number;
-  netProfit: number;
+  totals: ProfitTotals[];
   activeProjects: number;
   completedProjects: number;
   monthlyTrend: MonthlyTrendEntry[];

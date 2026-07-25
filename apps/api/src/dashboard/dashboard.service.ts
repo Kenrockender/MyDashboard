@@ -32,16 +32,8 @@ export class DashboardService {
     const allIncome = incomeSnap.docs.map((d) => docToEntity<Income>(d));
     const allExpenses = expenseSnap.docs.map((d) => docToEntity<Expense>(d));
 
-    const {
-      income: totalRevenue,
-      expenses: totalExpenses,
-      profit: netProfit,
-    } = calculateProfit(allIncome, allExpenses);
-
     return {
-      totalRevenue,
-      totalExpenses,
-      netProfit,
+      totals: calculateProfit(allIncome, allExpenses),
       activeProjects: projects.filter((p) => p.status === 'active').length,
       completedProjects: projects.filter((p) => p.status === 'completed')
         .length,

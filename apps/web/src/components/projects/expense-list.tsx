@@ -3,10 +3,11 @@ import { useState } from 'react';
 import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense, type Expense } from '@/hooks/use-expenses';
 import { Button, LinkButton } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
+import { CurrencySelect } from '@/components/ui/currency-select';
 import { ListSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/lib/toast-context';
-import { formatCategory, inputClass, money } from '@/lib/ui';
+import { formatCategory, inputClass, money, type Currency } from '@/lib/ui';
 
 const EXPENSE_CATEGORIES = [
   'hosting',
@@ -26,13 +27,14 @@ function ExpenseRow({
   expense: Expense;
   onUpdate: (
     id: string,
-    dto: { amount: number; category: string; description?: string; date: string },
+    dto: { amount: number; currency: Currency; category: string; description?: string; date: string },
     onDone: () => void,
   ) => void;
-  onDelete: (id: string, amount: number) => void;
+  onDelete: (id: string, amount: number, currency: Currency) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [amount, setAmount] = useState(String(expense.amount));
+  const [currency, setCurrency] = useState<Currency>(expense.currency);
   const [category, setCategory] = useState(expense.category);
   const [description, setDescription] = useState(expense.description ?? '');
   const [date, setDate] = useState(expense.date.slice(0, 10));
@@ -40,8 +42,10 @@ function ExpenseRow({
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!amount || !date) return;
-    onUpdate(expense.id, { amount: Number(amount), category, description: description || undefined, date }, () =>
-      setEditing(false),
+    onUpdate(
+      expense.id,
+      { amount: Number(amount), currency, category, description: description || undefined, date },
+      () => setEditing(false),
     );
   }
 
@@ -59,6 +63,7 @@ function ExpenseRow({
               className={inputClass}
             />
           </Field>
+          <CurrencySelect value={currency} onChange={setCurrency} />
           <Field label="Date">
             <input
               type="date"
@@ -101,20 +106,20 @@ function ExpenseRow({
     <li className="group flex items-center justify-between gap-3 border-t border-hair px-5 py-3">
       <div className="min-w-0">
         <div className="truncate text-sm text-ink">{expense.description || 'Expense'}</div>
-        <div className="mt-0.5 text-xs text-ink-muted">
+        <div className="mt-0.5 text-xs capitalize text-ink-muted">
           {formatCategory(expense.category)} · {expense.date.slice(0, 10)}
         </div>
       </div>
       <div className="flex flex-none items-center gap-4">
         <span className="font-tabular font-mono text-sm text-negative">
-          {money(Number(expense.amount))}
+          {money(Number(expense.amount), expense.currency)}
         </span>
         <div className="flex gap-3 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
           <LinkButton onClick={() => setEditing(true)}>Edit</LinkButton>
           <LinkButton
             tone="negative"
-            onClick={() => onDelete(expense.id, Number(expense.amount))}
-            aria-label={`Delete expense of ${money(Number(expense.amount))}`}
+            onClick={() => onDelete(expense.id, Number(expense.amount), expense.currency)}
+            aria-label={`Delete expense of ${money(Number(expense.amount), expense.currency)}`}
           >
             Delete
           </LinkButton>
@@ -132,6 +137,7 @@ export function ExpenseList({ projectId }: { projectId: string }) {
   const { showToast } = useToast();
 
   const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState<Currency>('USD');
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
   const [description, setDescription] = useState('');
   const [date, setDate] = useState('');
@@ -140,7 +146,7 @@ export function ExpenseList({ projectId }: { projectId: string }) {
     e.preventDefault();
     if (!amount || !date) return;
     createExpense.mutate(
-      { amount: Number(amount), category, description: description || undefined, date },
+      { amount: Number(amount), currency, category, description: description || undefined, date },
       {
         onSuccess: () => {
           setAmount('');
@@ -155,7 +161,7 @@ export function ExpenseList({ projectId }: { projectId: string }) {
 
   function handleUpdate(
     id: string,
-    dto: { amount: number; category: string; description?: string; date: string },
+    dto: { amount: number; currency: Currency; category: string; description?: string; date: string },
     onDone: () => void,
   ) {
     updateExpense.mutate(
@@ -170,8 +176,8 @@ export function ExpenseList({ projectId }: { projectId: string }) {
     );
   }
 
-  function handleDelete(id: string, amount: number) {
-    if (!window.confirm(`Delete this expense of ${money(amount)}?`)) return;
+  function handleDelete(id: string, amount: number, currency: Currency) {
+    if (!window.confirm(`Delete this expense of ${money(amount, currency)}?`)) return;
     deleteExpense.mutate(id, {
       onSuccess: () => showToast('Expense deleted.'),
       onError: () => showToast("Couldn't delete expense — try again.", 'error'),
@@ -196,15 +202,7 @@ export function ExpenseList({ projectId }: { projectId: string }) {
             className={inputClass}
           />
         </Field>
-        <Field label="Date">
-          <input
-            type="date"
-            required
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className={inputClass}
-          />
-        </Field>
+        <CurrencySelect value={currency} onChange={setCurrency} />
         <Field label="Category">
           <select
             value={category}
@@ -216,7 +214,16 @@ export function ExpenseList({ projectId }: { projectId: string }) {
             ))}
           </select>
         </Field>
-        <Field label="Description">
+        <Field label="Date">
+          <input
+            type="date"
+            required
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className={inputClass}
+          />
+        </Field>
+        <Field label="Description" className="sm:col-span-2">
           <input
             placeholder="What it was for"
             value={description}

@@ -1,23 +1,58 @@
-const MONEY = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  minimumFractionDigits: 2,
-});
+export const CURRENCIES = ['USD', 'IDR'] as const;
+export type Currency = (typeof CURRENCIES)[number];
 
-const MONEY_ROUND = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  maximumFractionDigits: 0,
-});
+/** IDR is conventionally shown without decimals; USD keeps cents. */
+const LOCALE: Record<Currency, string> = { USD: 'en-US', IDR: 'id-ID' };
 
-/** Line-item figures keep their cents. */
-export function money(amount: number) {
-  return MONEY.format(amount);
+const MONEY: Record<Currency, Intl.NumberFormat> = {
+  USD: new Intl.NumberFormat(LOCALE.USD, {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+  }),
+  IDR: new Intl.NumberFormat(LOCALE.IDR, {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+  }),
+};
+
+const MONEY_ROUND: Record<Currency, Intl.NumberFormat> = {
+  USD: new Intl.NumberFormat(LOCALE.USD, {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }),
+  IDR: MONEY.IDR,
+};
+
+/** Line-item figures keep their cents (except IDR, which has none). */
+export function money(amount: number, currency: Currency = 'USD') {
+  return MONEY[currency].format(amount);
 }
 
 /** Headline figures on stat tiles drop the cents, as in the Refined elevation. */
-export function moneyRounded(amount: number) {
-  return MONEY_ROUND.format(amount);
+export function moneyRounded(amount: number, currency: Currency = 'USD') {
+  return MONEY_ROUND[currency].format(amount);
+}
+
+/**
+ * Groups a list by currency, preserving each currency's first-seen order.
+ * Report/dashboard sections use this to render one block per currency in use
+ * — a single block when everything is one currency, more only when mixed.
+ */
+export function groupByCurrency<T>(
+  items: T[],
+  getCurrency: (item: T) => Currency,
+): { currency: Currency; items: T[] }[] {
+  const groups = new Map<Currency, T[]>();
+  for (const item of items) {
+    const currency = getCurrency(item);
+    const list = groups.get(currency);
+    if (list) list.push(item);
+    else groups.set(currency, [item]);
+  }
+  return [...groups.entries()].map(([currency, items]) => ({ currency, items }));
 }
 
 export function percent(fraction: number, digits = 1) {

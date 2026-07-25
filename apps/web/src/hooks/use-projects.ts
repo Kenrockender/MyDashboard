@@ -1,27 +1,43 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import type { Currency } from '@/lib/ui';
 
-export interface ProjectTotals { income: number; expenses: number; profit: number; }
+export type DealType = 'ongoing' | 'one_time';
+
+export interface ProfitTotals {
+  currency: Currency;
+  income: number;
+  expenses: number;
+  profit: number;
+}
+
 export interface Project {
   id: string;
   name: string;
   status: string;
+  dealType: DealType;
   clientId?: string | null;
   startDate?: string | null;
 }
-export interface ProjectDetail extends Project { totals: ProjectTotals; }
+export interface ProjectDetail extends Project { totals: ProfitTotals[]; }
 
 export interface CreateProjectInput {
   name: string;
   clientId?: string | null;
   status?: string;
   startDate?: string | null;
+  dealType?: DealType;
+  /** One-time sale only. */
+  saleAmount?: number;
+  saleCurrency?: Currency;
+  cost?: number;
 }
 
 export interface ProjectFilters {
   search?: string;
   status?: string;
   clientId?: string;
+  dealType?: DealType;
 }
 
 export function useProjects(filters: ProjectFilters = {}) {
@@ -29,6 +45,7 @@ export function useProjects(filters: ProjectFilters = {}) {
   if (filters.search) query.set('search', filters.search);
   if (filters.status) query.set('status', filters.status);
   if (filters.clientId) query.set('clientId', filters.clientId);
+  if (filters.dealType) query.set('dealType', filters.dealType);
   const suffix = query.size ? `?${query.toString()}` : '';
 
   return useQuery({

@@ -3,7 +3,8 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { FirebaseService } from '../firebase/firebase.service';
 import { COLLECTIONS, docToEntity } from '../firebase/collections';
 import { calculateProfit } from '../common/calculate-profit';
-import { CreateProjectDto } from './dto/create-project.dto';
+import { CreateProjectDto, DealType } from './dto/create-project.dto';
+import { Currency } from '../common/currencies';
 import type { Client } from '../clients/clients.service';
 
 export interface Project {
@@ -12,6 +13,7 @@ export interface Project {
   clientId?: string | null;
   name: string;
   status: string;
+  dealType: DealType;
   startDate?: Date | null;
   endDate?: Date | null;
   archived: boolean;
@@ -27,18 +29,70 @@ export class ProjectsService {
   }
 
   async create(userId: string, dto: CreateProjectDto): Promise<Project> {
+    const dealType = dto.dealType ?? 'ongoing';
+    const status =
+      dealType === 'one_time' ? 'completed' : (dto.status ?? 'active');
+    const startDate = dto.startDate
+      ? Timestamp.fromDate(new Date(dto.startDate))
+      : null;
+
     const ref = await this.collection.add({
       userId,
       name: dto.name,
       clientId: dto.clientId ?? null,
-      status: dto.status ?? 'active',
-      startDate: dto.startDate
-        ? Timestamp.fromDate(new Date(dto.startDate))
-        : null,
+      status,
+      dealType,
+      startDate,
       archived: false,
       createdAt: Timestamp.now(),
     });
+
+    if (dealType === 'one_time') {
+      await this.recordOneTimeSale(userId, ref.id, dto, startDate);
+    }
+
     return docToEntity<Project>(await ref.get());
+  }
+
+  /**
+   * A one-time sale skips the ongoing income/expense workflow, but still
+   * writes a single Income (and optional Expense) record so it flows through
+   * the exact same totals/reports/dashboard math as an ongoing project.
+   */
+  private async recordOneTimeSale(
+    userId: string,
+    projectId: string,
+    dto: CreateProjectDto,
+    date: Timestamp | null,
+  ) {
+    const saleDate = date ?? Timestamp.now();
+    const currency: Currency = dto.saleCurrency ?? 'USD';
+
+    if (dto.saleAmount) {
+      await this.firebase.db.collection(COLLECTIONS.income).add({
+        userId,
+        projectId,
+        amount: dto.saleAmount,
+        currency,
+        description: 'Sale',
+        status: 'paid',
+        date: saleDate,
+        createdAt: Timestamp.now(),
+      });
+    }
+
+    if (dto.cost) {
+      await this.firebase.db.collection(COLLECTIONS.expenses).add({
+        userId,
+        projectId,
+        amount: dto.cost,
+        currency,
+        category: 'miscellaneous',
+        description: 'Cost of sale',
+        date: saleDate,
+        createdAt: Timestamp.now(),
+      });
+    }
   }
 
   async findAll(
@@ -48,6 +102,7 @@ export class ProjectsService {
       clientId?: string;
       archived?: boolean;
       search?: string;
+      dealType?: string;
     },
   ): Promise<Project[]> {
     let query = this.collection
@@ -57,6 +112,8 @@ export class ProjectsService {
     if (filters.status) query = query.where('status', '==', filters.status);
     if (filters.clientId)
       query = query.where('clientId', '==', filters.clientId);
+    if (filters.dealType)
+      query = query.where('dealType', '==', filters.dealType);
 
     const snapshot = await query.orderBy('createdAt', 'desc').get();
     const projects = snapshot.docs.map((doc) => docToEntity<Project>(doc));
@@ -95,18 +152,26 @@ export class ProjectsService {
     ]);
 
     const income = incomeSnap.docs.map((d) =>
-      docToEntity<{ amount: number }>(d),
+      docToEntity<{ amount: number; currency?: Currency }>(d),
     );
     const expenses = expenseSnap.docs.map((d) =>
-      docToEntity<{ amount: number }>(d),
+      docToEntity<{ amount: number; currency?: Currency }>(d),
     );
+
+    const rawTotals = calculateProfit(income, expenses);
+    // A project with no income/expenses yet still gets one $0 row so the
+    // totals card has something to show instead of rendering empty.
+    const totals =
+      rawTotals.length > 0
+        ? rawTotals
+        : [{ currency: 'USD' as const, income: 0, expenses: 0, profit: 0 }];
 
     return {
       ...project,
       client: clientDoc?.exists ? docToEntity<Client>(clientDoc) : null,
       income,
       expenses,
-      totals: calculateProfit(income, expenses),
+      totals,
     };
   }
 

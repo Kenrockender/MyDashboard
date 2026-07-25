@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import type { Currency } from '@/lib/ui';
 
 export interface MonthlyReport {
   month: string;
+  currency: Currency;
   revenue: number;
   expenses: number;
   profit: number;
@@ -11,6 +13,7 @@ export interface MonthlyReport {
 export interface ProfitabilityEntry {
   projectId: string;
   name: string;
+  currency: Currency;
   income: number;
   expenses: number;
   profit: number;
@@ -19,19 +22,21 @@ export interface ProfitabilityEntry {
 
 export interface ExpenseBreakdownEntry {
   category: string;
+  currency: Currency;
   total: number;
 }
 
 export interface RevenueBreakdownEntry {
   clientId: string | null;
   clientName: string;
+  currency: Currency;
   total: number;
 }
 
 export function useMonthlyReport(month: string) {
   return useQuery({
     queryKey: ['reports', 'monthly', month],
-    queryFn: () => apiClient.get<MonthlyReport>(`/reports/monthly?month=${month}`),
+    queryFn: () => apiClient.get<MonthlyReport[]>(`/reports/monthly?month=${month}`),
     enabled: !!month,
   });
 }

@@ -10,7 +10,7 @@ import {
 } from 'recharts';
 import type { MonthlyTrendEntry } from '@/hooks/use-dashboard';
 import { Card } from '@/components/ui/card';
-import { moneyRounded } from '@/lib/ui';
+import { moneyRounded, type Currency } from '@/lib/ui';
 
 const SERIES = [
   { key: 'revenue', label: 'Revenue', color: 'var(--ink)', width: 2 },
@@ -20,11 +20,27 @@ const SERIES = [
 
 const TICK = { fill: 'var(--ink-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' };
 
-export function TrendChart({ data }: { data: MonthlyTrendEntry[] }) {
+/** A single currency's trend — the amounts in `data` must all be in `currency`. */
+export function TrendChart({
+  data,
+  currency,
+  showCurrencyTag = false,
+}: {
+  data: MonthlyTrendEntry[];
+  currency: Currency;
+  showCurrencyTag?: boolean;
+}) {
   return (
     <Card>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-lg italic text-ink sm:text-xl">Monthly trend</h2>
+        <h2 className="flex items-baseline gap-2 font-display text-lg italic text-ink sm:text-xl">
+          Monthly trend
+          {showCurrencyTag && (
+            <span className="font-mono text-[11px] not-italic uppercase tracking-[0.1em] text-ink-muted">
+              {currency}
+            </span>
+          )}
+        </h2>
         <div className="flex gap-4 text-[11.5px] text-ink-muted">
           {SERIES.map((s) => (
             <span key={s.key} className="inline-flex items-center gap-1.5">
@@ -52,10 +68,10 @@ export function TrendChart({ data }: { data: MonthlyTrendEntry[] }) {
               tickLine={false}
               axisLine={false}
               width={64}
-              tickFormatter={(value: number) => moneyRounded(value)}
+              tickFormatter={(value: number) => moneyRounded(value, currency)}
             />
             <Tooltip
-              formatter={(value, name) => [moneyRounded(Number(value)), name]}
+              formatter={(value, name) => [moneyRounded(Number(value), currency), name]}
               contentStyle={{
                 background: 'var(--paper-raised)',
                 border: '1px solid var(--border)',

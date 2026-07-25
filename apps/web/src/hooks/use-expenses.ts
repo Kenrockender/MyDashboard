@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import type { Currency } from '@/lib/ui';
 
 export interface Expense {
   id: string;
   amount: number;
+  currency: Currency;
   category: string;
   description?: string;
   date: string;
@@ -11,6 +13,7 @@ export interface Expense {
 
 export interface CreateExpenseInput {
   amount: number;
+  currency?: Currency;
   category: string;
   description?: string;
   date: string;

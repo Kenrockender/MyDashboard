@@ -3,12 +3,14 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { FirebaseService } from '../firebase/firebase.service';
 import { COLLECTIONS, docToEntity } from '../firebase/collections';
 import { CreateExpenseDto } from './dto/create-expense.dto';
+import { Currency } from '../common/currencies';
 
 export interface Expense {
   id: string;
   userId: string;
   projectId: string;
   amount: number;
+  currency: Currency;
   category: string;
   description?: string;
   date: Date;
@@ -43,6 +45,7 @@ export class ExpensesService {
       userId,
       projectId,
       amount: dto.amount,
+      currency: dto.currency ?? 'USD',
       category: dto.category,
       description: dto.description ?? null,
       date: Timestamp.fromDate(new Date(dto.date)),
@@ -73,6 +76,7 @@ export class ExpensesService {
 
     const patch: Record<string, unknown> = {};
     if (dto.amount !== undefined) patch.amount = dto.amount;
+    if (dto.currency !== undefined) patch.currency = dto.currency;
     if (dto.category !== undefined) patch.category = dto.category;
     if (dto.description !== undefined) patch.description = dto.description;
     if (dto.date !== undefined)
