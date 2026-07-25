@@ -26,14 +26,16 @@ export function Nav() {
 
   return (
     <>
-      <header className="border-b border-border bg-paper-raised">
+      <header className="border-b border-hair bg-paper-raised">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-3 sm:px-6 sm:py-4">
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-9">
             <Link href="/dashboard" className="flex items-center gap-2 text-ink">
               <LogoMark className="h-6 w-6 text-accent" />
-              <span className="hidden font-display text-lg italic sm:inline">Ledger</span>
+              <span className="hidden font-display text-xl italic tracking-[0.01em] sm:inline">
+                Ledger
+              </span>
             </Link>
-            <div className="hidden gap-5 md:flex">
+            <div className="hidden gap-7 md:flex">
               {links.map((link) => {
                 const active = pathname?.startsWith(link.href);
                 return (
@@ -58,7 +60,7 @@ export function Nav() {
               <img
                 src={user.photoURL}
                 alt=""
-                className="h-7 w-7 rounded-full border border-border"
+                className="h-[30px] w-[30px] rounded-full border border-hair"
               />
             )}
             <span className="hidden text-ink-muted sm:inline">
@@ -80,7 +82,7 @@ export function Nav() {
 
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-paper-raised pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-20 border-t border-hair bg-paper-raised pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         <div className="mx-auto flex max-w-6xl items-stretch justify-between">
           {links.map((link) => {

@@ -7,8 +7,10 @@ const TONES = {
 const STATUS_TONE: Record<string, keyof typeof TONES> = {
   active: "positive",
   completed: "neutral",
+  on_hold: "neutral",
   paid: "positive",
   pending: "negative",
+  overdue: "negative",
 };
 
 export function Badge({
@@ -21,9 +23,9 @@ export function Badge({
   const resolved = tone ?? STATUS_TONE[children.toLowerCase()] ?? "neutral";
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${TONES[resolved]}`}
+      className={`inline-flex items-center rounded-[5px] px-2 py-[3px] font-mono text-[9.5px] uppercase tracking-[0.08em] ${TONES[resolved]}`}
     >
-      {children}
+      {children.replace(/_/g, " ")}
     </span>
   );
 }

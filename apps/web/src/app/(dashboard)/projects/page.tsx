@@ -5,14 +5,22 @@ import { useProjects, useCreateProject } from '@/hooks/use-projects';
 import { useClients } from '@/hooks/use-clients';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Field, FormPanel } from '@/components/ui/field';
+import { PageHeader } from '@/components/ui/page-header';
+import { SearchInput } from '@/components/ui/search-input';
 import { ListSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/lib/toast-context';
+import { inputClass } from '@/lib/ui';
 
 const STATUSES = ['active', 'on_hold', 'completed'];
 
-const inputClass =
-  'rounded-md border border-border bg-paper-raised px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent/40';
+const STATUS_RULE: Record<string, string> = {
+  active: 'bg-accent',
+  on_hold: 'bg-negative',
+  completed: 'bg-border',
+};
 
 export default function ProjectsPage() {
   const [search, setSearch] = useState('');
@@ -53,61 +61,66 @@ export default function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="font-display text-2xl italic text-ink">Projects</h1>
+      <PageHeader
+        title="Projects"
+        subtitle="Select a project to read its ledger."
+      />
 
-      <form onSubmit={handleSubmit} className="flex flex-wrap gap-2">
-        <input
-          placeholder="Project name"
-          aria-label="Project name"
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className={`${inputClass} flex-1 min-w-[10rem]`}
-        />
-        <select
-          value={clientId}
-          onChange={(e) => setClientId(e.target.value)}
-          aria-label="Client"
-          className={inputClass}
-        >
-          <option value="">No client</option>
-          {clients?.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          aria-label="Status"
-          className={inputClass}
-        >
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>{s.replace('_', ' ')}</option>
-          ))}
-        </select>
-        <input
-          type="date"
-          aria-label="Start date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          className={inputClass}
-        />
-        <button
-          type="submit"
-          disabled={createProject.isPending}
-          className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-border/30 disabled:opacity-60"
-        >
-          Add project
-        </button>
-      </form>
+      <FormPanel title="New project" onSubmit={handleSubmit}>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.4fr_1.2fr_1fr_1fr_auto] lg:items-end">
+          <Field label="Name">
+            <input
+              placeholder="Project name"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Client">
+            <select
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">No client</option>
+              {clients?.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Status">
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className={inputClass}
+            >
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>{s.replace('_', ' ')}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Start date">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+          <Button type="submit" disabled={createProject.isPending} className="sm:col-span-2 lg:col-span-1">
+            Add project
+          </Button>
+        </div>
+      </FormPanel>
 
-      <div className="flex flex-wrap gap-2">
-        <input
-          placeholder="Search projects…"
-          aria-label="Search projects"
+      <div className="flex flex-wrap gap-3">
+        <SearchInput
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className={`${inputClass} min-w-[12rem] flex-1`}
+          onChange={setSearch}
+          label="Search projects"
+          placeholder="Search projects"
+          className="min-w-[12rem] flex-1"
         />
         <select
           value={statusFilter}
@@ -136,29 +149,39 @@ export default function ProjectsPage() {
       {isLoading && <ListSkeleton />}
       {isError && <ErrorState message="Couldn't load projects." onRetry={refetch} />}
       {!isLoading && !isError && (
-        <ul className="divide-y divide-border rounded-lg border border-border bg-paper-raised">
+        <div className="overflow-hidden rounded-[14px] border border-border bg-paper-raised">
+          <div className="border-b border-hair px-5 py-3 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+            Project
+          </div>
           {projects?.length === 0 && (
-            <li className="px-4 py-6 text-center text-sm text-ink-muted">No projects yet — add your first one above.</li>
+            <p className="px-5 py-6 text-center text-sm text-ink-muted">
+              No projects yet — add your first one above.
+            </p>
           )}
           {projects?.map((p) => (
-            <li key={p.id}>
-              <Link
-                href={`/projects/${p.id}`}
-                className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-border/20"
-              >
-                <span>
-                  <span className="font-medium text-ink">{p.name}</span>
-                  {p.clientId && (
-                    <span className="ml-2 text-sm text-ink-muted">
-                      {clients?.find((client) => client.id === p.clientId)?.name ?? 'Client'}
-                    </span>
-                  )}
+            <Link
+              key={p.id}
+              href={`/projects/${p.id}`}
+              className="flex items-start justify-between gap-4 border-t border-hair px-5 py-3.5 transition-colors first:border-t-0 hover:bg-hair/40"
+            >
+              <span className="flex min-w-0 gap-3">
+                <span
+                  aria-hidden
+                  className={`mt-0.5 w-[3px] flex-none self-stretch rounded-full ${
+                    STATUS_RULE[p.status] ?? 'bg-border'
+                  }`}
+                />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium text-ink">{p.name}</span>
+                  <span className="mt-0.5 block text-xs text-ink-muted">
+                    {clients?.find((client) => client.id === p.clientId)?.name ?? 'No client'}
+                  </span>
                 </span>
-                <Badge>{p.status}</Badge>
-              </Link>
-            </li>
+              </span>
+              <Badge>{p.status}</Badge>
+            </Link>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

@@ -6,7 +6,7 @@ export function ErrorState({
   onRetry?: () => void;
 }) {
   return (
-    <div className="flex flex-col items-start gap-2 rounded-lg border border-negative/30 bg-negative-soft p-4">
+    <div className="flex flex-col items-start gap-2 rounded-[14px] border border-negative/30 bg-negative-soft p-5">
       <p className="text-sm text-negative">{message}</p>
       {onRetry && (
         <button

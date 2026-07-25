@@ -12,13 +12,15 @@ import { useClients } from '@/hooks/use-clients';
 import { ProjectTotalsCard } from '@/components/projects/project-totals';
 import { IncomeList } from '@/components/projects/income-list';
 import { ExpenseList } from '@/components/projects/expense-list';
-import { CardSkeleton, Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Button, LinkButton } from '@/components/ui/button';
+import { Field, FormPanel } from '@/components/ui/field';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/lib/toast-context';
+import { inputClass } from '@/lib/ui';
 
 const STATUSES = ['active', 'on_hold', 'completed'];
-const inputClass =
-  'rounded-md border border-border bg-paper-raised px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent/40';
 
 function ProjectDetailsForm({
   project,
@@ -59,61 +61,64 @@ function ProjectDetailsForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-3 rounded-lg border border-border bg-paper-raised p-4 sm:grid-cols-2">
-      <label className="grid gap-1 text-sm text-ink">
-        Project name
-        <input
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className={inputClass}
-        />
-      </label>
-      <label className="grid gap-1 text-sm text-ink">
-        Client
-        <select value={clientId} onChange={(e) => setClientId(e.target.value)} className={inputClass}>
-          <option value="">No client</option>
-          {clients?.map((client) => (
-            <option key={client.id} value={client.id}>{client.name}</option>
-          ))}
-        </select>
-      </label>
-      <label className="grid gap-1 text-sm text-ink">
-        Status
-        <select value={status} onChange={(e) => setStatus(e.target.value)} className={inputClass}>
-          {STATUSES.map((value) => (
-            <option key={value} value={value}>{value.replace('_', ' ')}</option>
-          ))}
-        </select>
-      </label>
-      <label className="grid gap-1 text-sm text-ink">
-        Start date
-        <input
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          className={inputClass}
-        />
-      </label>
-      <div className="flex gap-3 sm:col-span-2">
-        <button
-          type="submit"
-          disabled={updateProject.isPending}
-          className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-border/30 disabled:opacity-60"
-        >
-          Save changes
-        </button>
-        <button type="button" onClick={onClose} className="text-sm font-medium text-ink-muted hover:underline">
-          Cancel
-        </button>
+    <FormPanel title="Edit project" onSubmit={handleSubmit}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Project name">
+          <input
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className={inputClass}
+          />
+        </Field>
+        <Field label="Client">
+          <select
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">No client</option>
+            {clients?.map((client) => (
+              <option key={client.id} value={client.id}>{client.name}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Status">
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className={inputClass}
+          >
+            {STATUSES.map((value) => (
+              <option key={value} value={value}>{value.replace('_', ' ')}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Start date">
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className={inputClass}
+          />
+        </Field>
+        <div className="flex items-center gap-4 sm:col-span-2">
+          <Button type="submit" disabled={updateProject.isPending}>
+            Save changes
+          </Button>
+          <LinkButton type="button" onClick={onClose}>
+            Cancel
+          </LinkButton>
+        </div>
       </div>
-    </form>
+    </FormPanel>
   );
 }
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: project, isLoading, isError, refetch } = useProject(id);
+  const { data: clients } = useClients();
   const archiveProject = useArchiveProject(id);
   const { showToast } = useToast();
   const router = useRouter();
@@ -124,12 +129,8 @@ export default function ProjectDetailPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-8 w-56" />
-        <div className="grid grid-cols-3 gap-4">
-          <CardSkeleton />
-          <CardSkeleton />
-          <CardSkeleton />
-        </div>
+        <Skeleton className="h-9 w-56" />
+        <Skeleton className="h-28 rounded-[14px]" />
       </div>
     );
   }
@@ -148,33 +149,40 @@ export default function ProjectDetailPage() {
     });
   }
 
+  const clientName = clients?.find((c) => c.id === project.clientId)?.name;
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl italic text-ink">{project.name}</h1>
-          <p className="mt-1 text-sm capitalize text-ink-muted">{project.status.replace('_', ' ')}</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="font-display text-[28px] italic leading-[1.05] tracking-[-0.01em] text-ink sm:text-[33px]">
+              {project.name}
+            </h1>
+            <Badge>{project.status}</Badge>
+          </div>
+          <p className="mt-1.5 text-sm text-ink-muted">Client · {clientName ?? 'None'}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setEditing((value) => !value)}
-            className="text-sm font-medium text-ink-muted hover:text-ink hover:underline"
-          >
+        <div className="flex items-center gap-4">
+          <LinkButton onClick={() => setEditing((value) => !value)}>
             {editing ? 'Cancel edit' : 'Edit details'}
-          </button>
-          <button
-            onClick={handleArchive}
-            disabled={archiveProject.isPending}
-            className="text-sm font-medium text-negative hover:underline disabled:opacity-60"
-          >
+          </LinkButton>
+          <LinkButton tone="negative" onClick={handleArchive} disabled={archiveProject.isPending}>
             Archive
-          </button>
+          </LinkButton>
         </div>
       </div>
-      {editing && <ProjectDetailsForm project={project} projectId={id} onClose={() => setEditing(false)} />}
+
+      {editing && (
+        <ProjectDetailsForm project={project} projectId={id} onClose={() => setEditing(false)} />
+      )}
+
       <ProjectTotalsCard totals={project.totals} />
-      <IncomeList projectId={id} />
-      <ExpenseList projectId={id} />
+
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <IncomeList projectId={id} />
+        <ExpenseList projectId={id} />
+      </div>
     </div>
   );
 }
