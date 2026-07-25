@@ -13,7 +13,7 @@ import { StatRow } from '@/components/ui/stat-group';
 import { MeterRow } from '@/components/ui/meter-row';
 import { Skeleton, ListSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
-import { inputClass, money, moneyRounded, percent } from '@/lib/ui';
+import { formatCategory, inputClass, money, moneyRounded, percent } from '@/lib/ui';
 
 function currentMonth() {
   return new Date().toISOString().slice(0, 7);
@@ -160,7 +160,7 @@ export default function ReportsPage() {
           {expenses?.map((e) => (
             <MeterRow
               key={e.category}
-              label={e.category}
+              label={formatCategory(e.category)}
               value={money(e.total)}
               share={expenseTotal > 0 ? e.total / expenseTotal : 0}
               tone="negative"

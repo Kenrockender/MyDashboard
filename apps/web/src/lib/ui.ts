@@ -24,6 +24,21 @@ export function percent(fraction: number, digits = 1) {
   return `${(fraction * 100).toFixed(digits)}%`;
 }
 
+const ACRONYMS = new Set(['api']);
+
+/** Turns a snake_case category like "api_usage" into "API Usage". */
+export function formatCategory(category: string) {
+  return category
+    .split('_')
+    .filter(Boolean)
+    .map((word) =>
+      ACRONYMS.has(word.toLowerCase())
+        ? word.toUpperCase()
+        : word[0].toUpperCase() + word.slice(1),
+    )
+    .join(' ');
+}
+
 /** Mono, wide-tracked, uppercase — the ledger's field and column labels. */
 export const microLabel =
   'font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted';

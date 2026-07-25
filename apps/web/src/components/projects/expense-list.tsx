@@ -6,7 +6,7 @@ import { Field } from '@/components/ui/field';
 import { ListSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/lib/toast-context';
-import { inputClass, money } from '@/lib/ui';
+import { formatCategory, inputClass, money } from '@/lib/ui';
 
 const EXPENSE_CATEGORIES = [
   'hosting',
@@ -75,7 +75,7 @@ function ExpenseRow({
               className={inputClass}
             >
               {EXPENSE_CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>
+                <option key={c} value={c}>{formatCategory(c)}</option>
               ))}
             </select>
           </Field>
@@ -101,8 +101,8 @@ function ExpenseRow({
     <li className="group flex items-center justify-between gap-3 border-t border-hair px-5 py-3">
       <div className="min-w-0">
         <div className="truncate text-sm text-ink">{expense.description || 'Expense'}</div>
-        <div className="mt-0.5 text-xs capitalize text-ink-muted">
-          {expense.category.replace(/_/g, ' ')} · {expense.date.slice(0, 10)}
+        <div className="mt-0.5 text-xs text-ink-muted">
+          {formatCategory(expense.category)} · {expense.date.slice(0, 10)}
         </div>
       </div>
       <div className="flex flex-none items-center gap-4">
@@ -212,7 +212,7 @@ export function ExpenseList({ projectId }: { projectId: string }) {
             className={inputClass}
           >
             {EXPENSE_CATEGORIES.map((c) => (
-              <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>
+              <option key={c} value={c}>{formatCategory(c)}</option>
             ))}
           </select>
         </Field>
