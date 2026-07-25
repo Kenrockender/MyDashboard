@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useDashboardSummary } from '@/hooks/use-dashboard';
 import { TrendChart } from '@/components/dashboard/trend-chart';
@@ -7,7 +8,34 @@ import { PageHeader } from '@/components/ui/page-header';
 import { StatGroup, type Stat } from '@/components/ui/stat-group';
 import { Skeleton, StatGroupSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
-import { groupByCurrency, moneyRounded, percent } from '@/lib/ui';
+import { groupByCurrency, moneyRounded, percent, type Currency } from '@/lib/ui';
+
+/** Pill switcher for picking which currency's totals to show, used when the ledger holds more than one. */
+function CurrencyToggle({
+  currencies,
+  selected,
+  onSelect,
+}: {
+  currencies: Currency[];
+  selected: Currency;
+  onSelect: (currency: Currency) => void;
+}) {
+  return (
+    <div className="inline-flex rounded-full border border-border bg-paper-raised p-0.5">
+      {currencies.map((currency) => (
+        <button
+          key={currency}
+          onClick={() => onSelect(currency)}
+          className={`rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors ${
+            currency === selected ? 'bg-accent text-accent-ink' : 'text-ink-muted hover:text-ink'
+          }`}
+        >
+          {currency}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const AS_OF = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' });
 
@@ -47,6 +75,34 @@ export default function DashboardPage() {
   const trendByCurrency = groupByCurrency(summary.monthlyTrend, (t) => t.currency);
 
   return (
+    <DashboardBody
+      summary={summary}
+      totalsGroups={totalsGroups}
+      multiCurrency={multiCurrency}
+      trendByCurrency={trendByCurrency}
+    />
+  );
+}
+
+function DashboardBody({
+  summary,
+  totalsGroups,
+  multiCurrency,
+  trendByCurrency,
+}: {
+  summary: NonNullable<ReturnType<typeof useDashboardSummary>['data']>;
+  totalsGroups: { currency: Currency; income: number; expenses: number; profit: number }[];
+  multiCurrency: boolean;
+  trendByCurrency: { currency: Currency; items: (typeof summary.monthlyTrend)[number][] }[];
+}) {
+  const [selected, setSelected] = useState<Currency>(totalsGroups[0].currency);
+  const activeCurrency = totalsGroups.some((t) => t.currency === selected) ? selected : totalsGroups[0].currency;
+  const shownGroups = multiCurrency ? totalsGroups.filter((t) => t.currency === activeCurrency) : totalsGroups;
+  const shownTrend = multiCurrency
+    ? trendByCurrency.filter(({ currency }) => currency === activeCurrency)
+    : trendByCurrency;
+
+  return (
     <div className="space-y-6">
       <PageHeader
         title="Dashboard"
@@ -54,8 +110,18 @@ export default function DashboardPage() {
         aside={<AsOf />}
       />
 
+      {multiCurrency && (
+        <div className="flex justify-end">
+          <CurrencyToggle
+            currencies={totalsGroups.map((t) => t.currency)}
+            selected={activeCurrency}
+            onSelect={setSelected}
+          />
+        </div>
+      )}
+
       <div className="space-y-4">
-        {totalsGroups.map((t, i) => {
+        {shownGroups.map((t, i) => {
           const stats: Stat[] = [
             { label: 'Total Revenue', value: moneyRounded(t.income, t.currency) },
             {
@@ -79,24 +145,15 @@ export default function DashboardPage() {
               caption: `${summary.completedProjects} completed`,
             });
           }
-          return (
-            <div key={t.currency}>
-              {multiCurrency && (
-                <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
-                  {t.currency}
-                </div>
-              )}
-              <StatGroup stats={stats} />
-            </div>
-          );
+          return <StatGroup key={t.currency} stats={stats} />;
         })}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.55fr_1fr] lg:items-start">
         <div className="space-y-6">
-          {trendByCurrency.length > 0 ? (
-            trendByCurrency.map(({ currency, items }) => (
-              <TrendChart key={currency} data={items} currency={currency} showCurrencyTag={multiCurrency} />
+          {shownTrend.length > 0 ? (
+            shownTrend.map(({ currency, items }) => (
+              <TrendChart key={currency} data={items} currency={currency} />
             ))
           ) : (
             <TrendChart data={[]} currency="USD" />

@@ -52,6 +52,9 @@ export function StatRow({ stats }: { stats: Stat[] }) {
 
 function Cell({ stat, size }: { stat: Stat; size: 'lg' | 'sm' }) {
   const { label, value, caption, tone = 'ink', ruled } = stat;
+  // Currency strings use a non-breaking space (e.g. Indonesian "Rp "), so long
+  // figures can't wrap onto a second line — shrink the type instead of letting them clip.
+  const isLongValue = String(value).length > 14;
   return (
     <div className={`relative bg-paper-raised ${size === 'lg' ? 'p-4 sm:p-5' : 'p-4'}`}>
       {ruled && <span className="absolute inset-x-0 top-0 h-0.5 bg-accent" />}
@@ -60,7 +63,11 @@ function Cell({ stat, size }: { stat: Stat; size: 'lg' | 'sm' }) {
       </div>
       <div
         className={`font-tabular font-mono tracking-[-0.02em] ${TONE_TEXT[tone]} ${
-          size === 'lg' ? 'mt-3 text-2xl sm:text-[29px]' : 'mt-2 text-xl sm:text-2xl'
+          size === 'lg'
+            ? isLongValue
+              ? 'mt-3 text-xl sm:text-2xl'
+              : 'mt-3 text-2xl sm:text-[29px]'
+            : 'mt-2 text-xl sm:text-2xl'
         }`}
       >
         {value}
