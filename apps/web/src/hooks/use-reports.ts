@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import type { Currency } from '@/lib/ui';
+import type { MonthlyTrendEntry } from '@/hooks/use-dashboard';
 
 export interface MonthlyReport {
   month: string;
@@ -38,6 +39,13 @@ export function useMonthlyReport(month: string) {
     queryKey: ['reports', 'monthly', month],
     queryFn: () => apiClient.get<MonthlyReport[]>(`/reports/monthly?month=${month}`),
     enabled: !!month,
+  });
+}
+
+export function useTrendReport() {
+  return useQuery({
+    queryKey: ['reports', 'trend'],
+    queryFn: () => apiClient.get<MonthlyTrendEntry[]>('/reports/trend'),
   });
 }
 

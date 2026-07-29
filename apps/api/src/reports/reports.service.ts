@@ -2,7 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
 import { COLLECTIONS, docToEntity } from '../firebase/collections';
 import { calculateProfit } from '../common/calculate-profit';
-import { monthKey } from '../dashboard/calculate-monthly-trend';
+import {
+  monthKey,
+  calculateMonthlyTrend,
+  type MonthlyTrendEntry,
+} from '../dashboard/calculate-monthly-trend';
 import { Currency } from '../common/currencies';
 import type { Client } from '../clients/clients.service';
 import type { Project } from '../projects/projects.service';
@@ -76,6 +80,15 @@ export class ReportsService {
         }));
       })
       .sort((a, b) => b.profit - a.profit);
+  }
+
+  /** The full multi-month trend — unlike getMonthly, not filtered to one
+   *  month. Reuses the same calculateMonthlyTrend the Dashboard summary
+   *  already uses, so a Reports export shows exactly what the Dashboard
+   *  chart shows. */
+  async getMonthlyTrend(userId: string): Promise<MonthlyTrendEntry[]> {
+    const { income, expenses } = await this.getAllRecords(userId);
+    return calculateMonthlyTrend(income, expenses);
   }
 
   async getExpenseBreakdown(userId: string) {

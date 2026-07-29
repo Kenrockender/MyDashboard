@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button, LinkButton } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { CurrencySelect } from '@/components/ui/currency-select';
+import { Select } from '@/components/ui/select';
 import { ListSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/lib/toast-context';
@@ -67,15 +68,11 @@ function IncomeRow({
             />
           </Field>
           <Field label="Status">
-            <select
+            <Select
               value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className={inputClass}
-            >
-              {INCOME_STATUSES.map((value) => (
-                <option key={value} value={value}>{value}</option>
-              ))}
-            </select>
+              onChange={setStatus}
+              options={INCOME_STATUSES.map((value) => ({ value, label: value }))}
+            />
           </Field>
           <Field label="Description">
             <input

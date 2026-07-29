@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Field, FormPanel } from '@/components/ui/field';
 import { CurrencySelect } from '@/components/ui/currency-select';
+import { Select } from '@/components/ui/select';
 import { PageHeader } from '@/components/ui/page-header';
 import { SearchInput } from '@/components/ui/search-input';
 import { ListSkeleton } from '@/components/ui/skeleton';
@@ -95,23 +96,19 @@ function NewProjectForm() {
           />
         </Field>
         <Field label="Client">
-          <select value={clientId} onChange={(e) => setClientId(e.target.value)} className={inputClass}>
-            <option value="">No client</option>
-            {clients?.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <Select
+            value={clientId}
+            onChange={setClientId}
+            placeholder="No client"
+            options={clients?.map((c) => ({ value: c.id, label: c.name })) ?? []}
+          />
         </Field>
         <Field label="Type">
-          <select
+          <Select
             value={dealType}
-            onChange={(e) => setDealType(e.target.value as DealType)}
-            className={inputClass}
-          >
-            {DEAL_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
-          </select>
+            onChange={(v) => setDealType(v as DealType)}
+            options={DEAL_TYPES}
+          />
         </Field>
       </div>
 
@@ -142,11 +139,11 @@ function NewProjectForm() {
           </>
         ) : (
           <Field label="Status">
-            <select value={status} onChange={(e) => setStatus(e.target.value)} className={inputClass}>
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>{s.replace('_', ' ')}</option>
-              ))}
-            </select>
+            <Select
+              value={status}
+              onChange={setStatus}
+              options={STATUSES.map((s) => ({ value: s, label: s.replace('_', ' ') }))}
+            />
           </Field>
         )}
         <Field label="Start date">
@@ -206,39 +203,30 @@ export default function ProjectsPage() {
             placeholder="Search projects"
             className="min-w-[12rem] flex-1"
           />
-          <select
+          <Select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={setStatusFilter}
             aria-label="Filter by status"
-            className={inputClass}
-          >
-            <option value="">All statuses</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>{s.replace('_', ' ')}</option>
-            ))}
-          </select>
-          <select
+            placeholder="All statuses"
+            className="w-auto"
+            options={STATUSES.map((s) => ({ value: s, label: s.replace('_', ' ') }))}
+          />
+          <Select
             value={clientFilter}
-            onChange={(e) => setClientFilter(e.target.value)}
+            onChange={setClientFilter}
             aria-label="Filter by client"
-            className={inputClass}
-          >
-            <option value="">All clients</option>
-            {clients?.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          <select
+            placeholder="All clients"
+            className="w-auto"
+            options={clients?.map((c) => ({ value: c.id, label: c.name })) ?? []}
+          />
+          <Select
             value={dealTypeFilter}
-            onChange={(e) => setDealTypeFilter(e.target.value as DealType | '')}
+            onChange={(v) => setDealTypeFilter(v as DealType | '')}
             aria-label="Filter by type"
-            className={inputClass}
-          >
-            <option value="">All types</option>
-            {DEAL_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
-          </select>
+            placeholder="All types"
+            className="w-auto"
+            options={DEAL_TYPES}
+          />
         </div>
 
         {isLoading && <ListSkeleton />}

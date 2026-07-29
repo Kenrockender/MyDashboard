@@ -125,6 +125,26 @@ describe('ReportsService', () => {
     });
   });
 
+  describe('getMonthlyTrend', () => {
+    it('returns every month with activity, not just one', async () => {
+      const service = await buildService({
+        income: [
+          { id: 'i1', userId: 'user_1', amount: 1000, date: '2026-05-15T00:00:00.000Z' },
+          { id: 'i2', userId: 'user_1', amount: 2000, date: '2026-06-01T00:00:00.000Z' },
+        ],
+        expenses: [
+          { id: 'e1', userId: 'user_1', amount: 100, date: '2026-06-15T00:00:00.000Z' },
+        ],
+      });
+
+      const result = await service.getMonthlyTrend('user_1');
+      expect(result).toEqual([
+        { month: '2026-05', currency: 'USD', revenue: 1000, expenses: 0, profit: 1000 },
+        { month: '2026-06', currency: 'USD', revenue: 2000, expenses: 100, profit: 1900 },
+      ]);
+    });
+  });
+
   describe('scoping', () => {
     it('excludes records belonging to another user', async () => {
       const service = await buildService({

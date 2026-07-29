@@ -4,11 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuthContext } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { NotificationBell } from "@/components/shared/notification-bell";
 import {
   LogoMark,
   DashboardIcon,
   ProjectsIcon,
   ClientsIcon,
+  InvoicesIcon,
   ReportsIcon,
   SignOutIcon,
 } from "@/components/shared/icons";
@@ -17,6 +19,7 @@ const links = [
   { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon },
   { href: "/projects", label: "Projects", Icon: ProjectsIcon },
   { href: "/clients", label: "Clients", Icon: ClientsIcon },
+  { href: "/invoices", label: "Invoices", Icon: InvoicesIcon },
   { href: "/reports", label: "Reports", Icon: ReportsIcon },
 ];
 
@@ -53,6 +56,7 @@ export function Nav() {
             </div>
           </div>
           <div className="flex items-center gap-3 text-sm">
+            <NotificationBell />
             <ThemeToggle />
             {user?.photoURL && (
               // Google avatars come from a domain not configured for next/image.

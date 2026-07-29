@@ -78,5 +78,25 @@ export function formatCategory(category: string) {
 export const microLabel =
   'font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted';
 
+/** Decodes a base64 string (as stored on an Attachment) back into a Blob for download/preview. */
+export function base64ToBlob(base64: string, mimeType: string): Blob {
+  const byteChars = atob(base64);
+  const bytes = new Uint8Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+  return new Blob([bytes], { type: mimeType });
+}
+
+/** Triggers a browser download for an already-fetched Blob (e.g. a PDF from apiClient.getBlob). */
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 export const inputClass =
-  'rounded-lg border border-border bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
+  'w-full min-w-0 rounded-lg border border-border bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';

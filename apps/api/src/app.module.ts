@@ -8,6 +8,11 @@ import { ClientsModule } from './clients/clients.module';
 import { ProjectsModule } from './projects/projects.module';
 import { IncomeModule } from './income/income.module';
 import { ExpensesModule } from './expenses/expenses.module';
+import { InvoicesModule } from './invoices/invoices.module';
+import { TimeEntriesModule } from './time-entries/time-entries.module';
+import { AttachmentsModule } from './attachments/attachments.module';
+import { TaxModule } from './tax/tax.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ReportsModule } from './reports/reports.module';
 import { FirebaseAuthGuard } from './auth/firebase-auth.guard';
@@ -25,6 +30,11 @@ import { FirebaseAuthGuard } from './auth/firebase-auth.guard';
     ProjectsModule,
     IncomeModule,
     ExpensesModule,
+    InvoicesModule,
+    TimeEntriesModule,
+    AttachmentsModule,
+    TaxModule,
+    NotificationsModule,
     DashboardModule,
     ReportsModule,
   ],

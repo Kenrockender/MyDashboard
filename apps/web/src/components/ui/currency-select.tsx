@@ -1,6 +1,6 @@
 import { CURRENCIES, type Currency } from '@/lib/ui';
 import { Field } from '@/components/ui/field';
-import { inputClass } from '@/lib/ui';
+import { Select } from '@/components/ui/select';
 
 export function CurrencySelect({
   value,
@@ -13,15 +13,11 @@ export function CurrencySelect({
 }) {
   return (
     <Field label="Currency" className={className}>
-      <select
+      <Select
         value={value}
-        onChange={(e) => onChange(e.target.value as Currency)}
-        className={inputClass}
-      >
-        {CURRENCIES.map((c) => (
-          <option key={c} value={c}>{c}</option>
-        ))}
-      </select>
+        onChange={(v) => onChange(v as Currency)}
+        options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+      />
     </Field>
   );
 }

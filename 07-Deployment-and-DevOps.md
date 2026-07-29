@@ -94,6 +94,18 @@ Firestore is schemaless, so there's no migration step to run. What actually need
 | Frontend analytics | Vercel Analytics | Built in, no extra setup |
 | API logs | Vercel's Function logs (Dashboard → Deployments → Functions) | Sufficient at this scale; revisit if volume grows |
 
+## 7a. Performance — Dashboard/Reports NFR
+
+The PRD's "dashboard loads in under 2 seconds" NFR was measured directly (`apps/api/scripts/measure-perf.ts`, added alongside `seed-demo.ts`'s new `YEARS`/`SCALE` scaling options) against a seeded dataset of **30 clients, 51 projects, 1,262 income + 1,201 expense records** (3 years, 5x the normal demo scale) — well beyond what a solo founder accumulates in years of real use.
+
+**Result — `GET /api/dashboard/summary`:** min 284ms · p50 317ms · p95 525ms · max 525ms (1 warmup + 10 timed runs, each doing its own live Firestore reads). **Comfortably under the 2s NFR** even at this scale.
+
+**The rest of the measurement run couldn't complete**: the second endpoint (`reports/monthly`) hit a Firestore `RESOURCE_EXHAUSTED` / "Quota exceeded" error, and three immediate retries a minute apart all hit the same wall. This is itself the more important finding: `DashboardService` and every `ReportsService` method (`getAllRecords`) pull the user's **entire** income/expenses collections into memory on every single request — no pagination, no date-range filtering, no server-side aggregation anywhere in the codebase. At a few hundred docs (the original demo scale) that's invisible. At ~2,500 docs, hammering all 5 endpoints back-to-back (11 runs × 5 endpoints × 2-3 parallel full-collection reads each) was enough to trip a Firestore read quota within seconds — a concrete, reproduced example of the exact bottleneck this NFR was meant to catch.
+
+**Verdict:** the dashboard itself is fast (well under 2s) at realistic solo-founder-scale data volumes. The risk isn't dashboard latency — it's that `getAllRecords`-style full-collection reads (used by every Report and the Dashboard) don't scale their **read cost**, only their compute cost, and that shows up as quota exhaustion under burst load well before it shows up as a slow page. **Cheapest fix if/when this matters in real usage** (not built now — this is a documented option, not a rewrite): add a date-range filter to `getAllRecords`'s and `DashboardService.getSummary`'s Firestore queries (e.g., only fetch the trailing N months for the trend chart, and load older data on demand for reports), rather than a full aggregation-engine rewrite.
+
+**Load-test data cleanup note:** the seeded dataset above was written directly to the production Firestore project (`mydashboard-2b323`) — there is no emulator or staging database configured (see §3). It's tagged `_demo:true` exactly like the normal demo seed, removable at any time via `npm run unseed` from `apps/api`. Cleanup was attempted immediately after this measurement but **also hit the same quota exhaustion** and did not complete as of this writing — run `npm run unseed` once the quota window resets to confirm it's gone (check the Clients/Projects lists in the live app for entries like "Aurora Coffee Co. #5" or "GreenLeaf Internal Dashboard #4" as a quick visual check).
+
 ## 8. Backup & Disaster Recovery
 
 - Firestore supports scheduled exports to Cloud Storage on the Blaze (pay-as-you-go) plan — not configured yet.

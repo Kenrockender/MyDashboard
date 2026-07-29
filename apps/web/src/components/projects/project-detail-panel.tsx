@@ -11,10 +11,13 @@ import { useClients } from '@/hooks/use-clients';
 import { ProjectTotalsCard } from '@/components/projects/project-totals';
 import { IncomeList } from '@/components/projects/income-list';
 import { ExpenseList } from '@/components/projects/expense-list';
+import { InvoiceList } from '@/components/projects/invoice-list';
+import { TimeEntryList } from '@/components/projects/time-entry-list';
 import { SaleSummary } from '@/components/projects/sale-summary';
 import { Badge } from '@/components/ui/badge';
 import { Button, LinkButton } from '@/components/ui/button';
 import { Field, FormPanel } from '@/components/ui/field';
+import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/lib/toast-context';
@@ -72,28 +75,20 @@ function ProjectDetailsForm({
           />
         </Field>
         <Field label="Client">
-          <select
+          <Select
             value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-            className={inputClass}
-          >
-            <option value="">No client</option>
-            {clients?.map((client) => (
-              <option key={client.id} value={client.id}>{client.name}</option>
-            ))}
-          </select>
+            onChange={setClientId}
+            placeholder="No client"
+            options={clients?.map((client) => ({ value: client.id, label: client.name })) ?? []}
+          />
         </Field>
         {project.dealType !== 'one_time' && (
           <Field label="Status">
-            <select
+            <Select
               value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className={inputClass}
-            >
-              {STATUSES.map((value) => (
-                <option key={value} value={value}>{value.replace('_', ' ')}</option>
-              ))}
-            </select>
+              onChange={setStatus}
+              options={STATUSES.map((value) => ({ value, label: value.replace('_', ' ') }))}
+            />
           </Field>
         )}
         <Field label="Start date">
@@ -218,10 +213,14 @@ export function ProjectDetailPanel({
       {isOneTime ? (
         <SaleSummary projectId={projectId} />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-          <IncomeList projectId={projectId} />
-          <ExpenseList projectId={projectId} />
-        </div>
+        <>
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+            <IncomeList projectId={projectId} />
+            <ExpenseList projectId={projectId} />
+          </div>
+          <InvoiceList projectId={projectId} />
+          <TimeEntryList projectId={projectId} />
+        </>
       )}
     </div>
   );

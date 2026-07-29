@@ -5,6 +5,9 @@ export const COLLECTIONS = {
   projects: 'projects',
   income: 'income',
   expenses: 'expenses',
+  invoices: 'invoices',
+  timeEntries: 'timeEntries',
+  attachments: 'attachments',
 } as const;
 
 // Firestore returns Timestamps; the API contract (04-API-Specification.md) is

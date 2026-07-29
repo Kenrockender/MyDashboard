@@ -11,7 +11,7 @@ export function Field({
   className?: string;
 }) {
   return (
-    <label className={`flex flex-col gap-1.5 ${className}`}>
+    <label className={`flex min-w-0 flex-col gap-1.5 ${className}`}>
       <span className="font-mono text-[9.5px] uppercase tracking-[0.1em] text-ink-muted">
         {label}
       </span>
