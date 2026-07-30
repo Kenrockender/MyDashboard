@@ -26,7 +26,7 @@ jobs:
           node-version: 20
       - run: npm ci
       - name: Export Firestore
-        working-directory: apps/api
+        working-directory: apps/web
         env:
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
           FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
@@ -37,5 +37,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: firestore-backup-${{ github.run_id }}
-          path: apps/api/backups/*.json
+          path: apps/web/backups/*.json
           retention-days: 90

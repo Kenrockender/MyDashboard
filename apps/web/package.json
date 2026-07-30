@@ -6,24 +6,41 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "backup": "ts-node --project tsconfig.scripts.json scripts/backup-firestore.ts",
+    "seed": "ts-node --project tsconfig.scripts.json scripts/seed-demo.ts",
+    "unseed": "ts-node --project tsconfig.scripts.json scripts/unseed-demo.ts",
+    "measure-perf": "ts-node --project tsconfig.scripts.json scripts/measure-perf.ts"
   },
   "dependencies": {
+    "@nestjs/common": "^11.0.1",
+    "@react-pdf/renderer": "^4.5.1",
     "@tanstack/react-query": "^5.101.4",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "dotenv": "^17.4.2",
     "firebase": "^12.16.0",
+    "firebase-admin": "^14.2.0",
     "next": "16.2.11",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "recharts": "^3.10.0"
+    "recharts": "^3.10.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
+    "jest": "^30.0.0",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }

@@ -7,15 +7,13 @@
 
 ## 1. Overview
 
-REST API served by the NestJS backend. All endpoints return JSON, require authentication (except health checks), and scope every query to the authenticated user.
+REST API served by Next.js Route Handlers under `apps/web/src/app/api/` (formerly a separate NestJS backend, merged into the Next.js app — see `07-Deployment-and-DevOps.md` §1). All endpoints return JSON, require authentication (except health checks), and scope every query to the authenticated user.
 
 ## 2. Base URL & Versioning
 
 ```
-Local:      http://localhost:3001/api
-Production: whatever the apps/api Vercel project's URL is, set as
-            NEXT_PUBLIC_API_URL on the apps/web Vercel project — no custom
-            api. subdomain is configured yet
+Local:      http://localhost:3000/api
+Production: same origin as the app — no separate host/subdomain, no CORS
 ```
 
 No version prefix for MVP (single consumer — the first-party frontend). Introduce `/api/v1` only if a public API becomes a real requirement.

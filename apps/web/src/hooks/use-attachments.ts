@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
-// Matches apps/api/src/attachments/dto/create-attachment.dto.ts#MAX_ATTACHMENT_BYTES —
+// Matches src/server/attachments/dto/create-attachment.dto.ts#MAX_ATTACHMENT_BYTES —
 // checked here too so the user gets instant feedback instead of a round-trip 400.
 export const MAX_ATTACHMENT_BYTES = 700 * 1024;
 
