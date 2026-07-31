@@ -16,6 +16,7 @@ import { Field } from '@/components/ui/field';
 import { ListSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/lib/toast-context';
+import { useConfirm } from '@/lib/confirm-context';
 import { apiClient } from '@/lib/api-client';
 import { downloadBlob, inputClass, money } from '@/lib/ui';
 
@@ -97,6 +98,7 @@ export function InvoiceList({ projectId }: { projectId: string }) {
   const sendInvoice = useSendInvoice(projectId);
   const deleteInvoice = useDeleteInvoice(projectId);
   const { showToast } = useToast();
+  const confirm = useConfirm();
 
   const [selected, setSelected] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState('');
@@ -183,8 +185,13 @@ export function InvoiceList({ projectId }: { projectId: string }) {
     );
   }
 
-  function handleDelete(invoice: Invoice) {
-    if (!window.confirm(`Delete draft invoice ${invoice.invoiceNumber}?`)) return;
+  async function handleDelete(invoice: Invoice) {
+    const confirmed = await confirm({
+      message: `Delete draft invoice ${invoice.invoiceNumber}?`,
+      confirmLabel: 'Delete',
+      tone: 'negative',
+    });
+    if (!confirmed) return;
     deleteInvoice.mutate(invoice.id, {
       onSuccess: () => showToast('Invoice deleted.'),
       onError: () => showToast("Couldn't delete invoice — try again.", 'error'),
@@ -222,6 +229,7 @@ export function InvoiceList({ projectId }: { projectId: string }) {
                       checked={selected.includes(i.id)}
                       onChange={() => toggleSelected(i.id)}
                       disabled={disabled}
+                      aria-label={i.description || 'Income'}
                       className="h-4 w-4 rounded border-border disabled:cursor-not-allowed"
                     />
                     <span className="min-w-0 flex-1 truncate">{i.description || 'Income'}</span>
