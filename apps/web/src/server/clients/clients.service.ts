@@ -66,7 +66,13 @@ class ClientsService {
     const doc = await ref.get();
     if (!doc.exists || docToEntity<Client>(doc).userId !== userId) return null;
 
-    await ref.update({ ...dto });
+    const patch: Record<string, unknown> = {};
+    if (dto.name !== undefined) patch.name = dto.name;
+    if (dto.email !== undefined) patch.email = dto.email;
+    if (dto.phone !== undefined) patch.phone = dto.phone;
+    if (dto.company !== undefined) patch.company = dto.company;
+
+    await ref.update(patch);
     return docToEntity<Client>(await ref.get());
   }
 }
