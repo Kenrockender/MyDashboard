@@ -1,6 +1,14 @@
-import { IsNumber, IsPositive, IsOptional, IsString, IsIn, IsDateString } from 'class-validator';
+import {
+  IsNumber,
+  IsPositive,
+  IsOptional,
+  IsString,
+  IsIn,
+  IsBoolean,
+  IsDateString,
+} from 'class-validator';
 import { CURRENCIES, type Currency } from '../../common/currencies';
-import { EXPENSE_CATEGORIES } from './create-expense.dto';
+import { EXPENSE_CATEGORIES, RECURRENCE_INTERVALS, type RecurrenceInterval } from './create-expense.dto';
 
 export class UpdateExpenseDto {
   @IsOptional()
@@ -23,4 +31,12 @@ export class UpdateExpenseDto {
   @IsOptional()
   @IsDateString()
   date?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isRecurring?: boolean;
+
+  @IsOptional()
+  @IsIn(RECURRENCE_INTERVALS)
+  recurrenceInterval?: RecurrenceInterval | null;
 }

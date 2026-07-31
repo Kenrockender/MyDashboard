@@ -17,6 +17,24 @@ export interface OverdueIncomeSummary {
   totalsByCurrency: { currency: Currency; total: number }[];
 }
 
+export type RecurrenceInterval = 'weekly' | 'monthly' | 'yearly';
+
+export interface UpcomingRecurringExpenseEntry {
+  id: string;
+  projectId: string;
+  projectName: string;
+  description: string;
+  amount: number;
+  currency: Currency;
+  category: string;
+  interval: RecurrenceInterval;
+  nextDueDate: string;
+}
+
+export interface UpcomingRecurringExpensesSummary {
+  entries: UpcomingRecurringExpenseEntry[];
+}
+
 /** The one query in the app that polls — notifications are a passive
  *  "things you should know" signal, not something the user refreshes by
  *  navigating like every other list here. */
@@ -24,6 +42,15 @@ export function useOverdueIncome() {
   return useQuery({
     queryKey: ['notifications', 'overdue-income'],
     queryFn: () => apiClient.get<OverdueIncomeSummary>('/notifications/overdue-income'),
+    refetchInterval: 5 * 60 * 1000,
+  });
+}
+
+export function useUpcomingRecurringExpenses() {
+  return useQuery({
+    queryKey: ['notifications', 'upcoming-recurring-expenses'],
+    queryFn: () =>
+      apiClient.get<UpcomingRecurringExpensesSummary>('/notifications/upcoming-recurring-expenses'),
     refetchInterval: 5 * 60 * 1000,
   });
 }

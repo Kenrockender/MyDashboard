@@ -61,4 +61,61 @@ describe('NotificationsService', () => {
     expect(result.entries).toEqual([]);
     expect(result.totalsByCurrency).toEqual([]);
   });
+
+  it('joins project names onto upcoming recurring expenses and excludes other users', async () => {
+    mockDb = createFakeFirestore({
+      projects: [{ id: 'proj_1', userId: 'user_1', name: 'Website Redesign' }],
+      expenses: [
+        {
+          id: 'e1',
+          userId: 'user_1',
+          projectId: 'proj_1',
+          amount: 50,
+          currency: 'USD',
+          category: 'hosting',
+          description: 'AWS hosting',
+          // Weekly, so the next occurrence is always within 7 days of "now"
+          // — deterministic regardless of when this test actually runs.
+          date: '2026-01-01T00:00:00.000Z',
+          isRecurring: true,
+          recurrenceInterval: 'weekly',
+        },
+        {
+          id: 'e2',
+          userId: 'user_2',
+          projectId: 'proj_1',
+          amount: 999,
+          currency: 'USD',
+          category: 'hosting',
+          date: '2026-01-01T00:00:00.000Z',
+          isRecurring: true,
+          recurrenceInterval: 'weekly',
+        },
+      ],
+    }).db;
+
+    const result = await notificationsService.getUpcomingRecurringExpenses('user_1');
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0].projectName).toBe('Website Redesign');
+    expect(result.entries[0].description).toBe('AWS hosting');
+  });
+
+  it('returns no entries when there are no recurring expenses', async () => {
+    mockDb = createFakeFirestore({
+      projects: [{ id: 'proj_1', userId: 'user_1', name: 'Website Redesign' }],
+      expenses: [
+        {
+          id: 'e1',
+          userId: 'user_1',
+          projectId: 'proj_1',
+          amount: 50,
+          category: 'hosting',
+          date: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    }).db;
+
+    const result = await notificationsService.getUpcomingRecurringExpenses('user_1');
+    expect(result.entries).toEqual([]);
+  });
 });

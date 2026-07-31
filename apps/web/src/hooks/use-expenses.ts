@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import type { Currency } from '@/lib/ui';
 
+export type RecurrenceInterval = 'weekly' | 'monthly' | 'yearly';
+
 export interface Expense {
   id: string;
   amount: number;
@@ -9,6 +11,8 @@ export interface Expense {
   category: string;
   description?: string;
   date: string;
+  isRecurring?: boolean;
+  recurrenceInterval?: RecurrenceInterval | null;
 }
 
 export interface CreateExpenseInput {
@@ -17,6 +21,8 @@ export interface CreateExpenseInput {
   category: string;
   description?: string;
   date: string;
+  isRecurring?: boolean;
+  recurrenceInterval?: RecurrenceInterval | null;
 }
 
 export function useExpenses(projectId: string) {

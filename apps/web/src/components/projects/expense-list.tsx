@@ -1,12 +1,20 @@
 'use client';
 import { useRef, useState } from 'react';
-import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense, type Expense } from '@/hooks/use-expenses';
+import {
+  useExpenses,
+  useCreateExpense,
+  useUpdateExpense,
+  useDeleteExpense,
+  type Expense,
+  type RecurrenceInterval,
+} from '@/hooks/use-expenses';
 import {
   useAttachments,
   useUploadAttachment,
   useDeleteAttachment,
   MAX_ATTACHMENT_BYTES,
 } from '@/hooks/use-attachments';
+import { Badge } from '@/components/ui/badge';
 import { Button, LinkButton } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { CurrencySelect } from '@/components/ui/currency-select';
@@ -14,6 +22,7 @@ import { Select } from '@/components/ui/select';
 import { ListSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/lib/toast-context';
+import { useConfirm } from '@/lib/confirm-context';
 import { base64ToBlob, downloadBlob, formatCategory, inputClass, money, type Currency } from '@/lib/ui';
 
 function readFileAsBase64(file: File): Promise<string> {
@@ -33,6 +42,7 @@ function ExpenseAttachments({ expenseId }: { expenseId: string }) {
   const uploadAttachment = useUploadAttachment(expenseId);
   const deleteAttachment = useDeleteAttachment(expenseId);
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -60,8 +70,13 @@ function ExpenseAttachments({ expenseId }: { expenseId: string }) {
     downloadBlob(base64ToBlob(att.dataBase64, att.mimeType), att.filename);
   }
 
-  function handleDelete(att: { id: string; filename: string }) {
-    if (!window.confirm(`Remove attachment "${att.filename}"?`)) return;
+  async function handleDelete(att: { id: string; filename: string }) {
+    const confirmed = await confirm({
+      message: `Remove attachment "${att.filename}"?`,
+      confirmLabel: 'Remove',
+      tone: 'negative',
+    });
+    if (!confirmed) return;
     deleteAttachment.mutate(att.id, {
       onSuccess: () => showToast('Attachment removed.'),
       onError: () => showToast("Couldn't remove attachment — try again.", 'error'),
@@ -109,6 +124,8 @@ const EXPENSE_CATEGORIES = [
   'miscellaneous',
 ];
 
+const RECURRENCE_INTERVALS: RecurrenceInterval[] = ['weekly', 'monthly', 'yearly'];
+
 function ExpenseRow({
   expense,
   onUpdate,
@@ -117,7 +134,15 @@ function ExpenseRow({
   expense: Expense;
   onUpdate: (
     id: string,
-    dto: { amount: number; currency: Currency; category: string; description?: string; date: string },
+    dto: {
+      amount: number;
+      currency: Currency;
+      category: string;
+      description?: string;
+      date: string;
+      isRecurring: boolean;
+      recurrenceInterval: RecurrenceInterval | null;
+    },
     onDone: () => void,
   ) => void;
   onDelete: (id: string, amount: number, currency: Currency) => void;
@@ -129,13 +154,25 @@ function ExpenseRow({
   const [category, setCategory] = useState(expense.category);
   const [description, setDescription] = useState(expense.description ?? '');
   const [date, setDate] = useState(expense.date.slice(0, 10));
+  const [isRecurring, setIsRecurring] = useState(expense.isRecurring ?? false);
+  const [recurrenceInterval, setRecurrenceInterval] = useState<RecurrenceInterval>(
+    expense.recurrenceInterval ?? 'monthly',
+  );
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!amount || !date) return;
     onUpdate(
       expense.id,
-      { amount: Number(amount), currency, category, description: description || undefined, date },
+      {
+        amount: Number(amount),
+        currency,
+        category,
+        description: description || undefined,
+        date,
+        isRecurring,
+        recurrenceInterval: isRecurring ? recurrenceInterval : null,
+      },
       () => setEditing(false),
     );
   }
@@ -178,6 +215,25 @@ function ExpenseRow({
               className={inputClass}
             />
           </Field>
+          <div className="flex items-end gap-3 sm:col-span-2">
+            <label className="flex items-center gap-2 text-sm text-ink">
+              <input
+                type="checkbox"
+                checked={isRecurring}
+                onChange={(e) => setIsRecurring(e.target.checked)}
+                className="h-4 w-4 rounded border-border"
+              />
+              Recurring
+            </label>
+            {isRecurring && (
+              <Select
+                value={recurrenceInterval}
+                onChange={(v) => setRecurrenceInterval(v as RecurrenceInterval)}
+                options={RECURRENCE_INTERVALS.map((i) => ({ value: i, label: i }))}
+                className="w-32"
+              />
+            )}
+          </div>
           <div className="flex items-center gap-4 sm:col-span-2">
             <Button type="submit">Save</Button>
             <LinkButton type="button" onClick={() => setEditing(false)}>
@@ -193,7 +249,12 @@ function ExpenseRow({
     <li className="group border-t border-hair px-5 py-3">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate text-sm text-ink">{expense.description || 'Expense'}</div>
+          <div className="flex items-center gap-2">
+            <span className="truncate text-sm text-ink">{expense.description || 'Expense'}</span>
+            {expense.isRecurring && expense.recurrenceInterval && (
+              <Badge tone="neutral">{expense.recurrenceInterval}</Badge>
+            )}
+          </div>
           <div className="mt-0.5 text-xs capitalize text-ink-muted">
             {formatCategory(expense.category)} · {expense.date.slice(0, 10)}
           </div>
@@ -228,23 +289,35 @@ export function ExpenseList({ projectId }: { projectId: string }) {
   const updateExpense = useUpdateExpense(projectId);
   const deleteExpense = useDeleteExpense(projectId);
   const { showToast } = useToast();
+  const confirm = useConfirm();
 
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState<Currency>('USD');
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
   const [description, setDescription] = useState('');
   const [date, setDate] = useState('');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceInterval, setRecurrenceInterval] = useState<RecurrenceInterval>('monthly');
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!amount || !date) return;
     createExpense.mutate(
-      { amount: Number(amount), currency, category, description: description || undefined, date },
+      {
+        amount: Number(amount),
+        currency,
+        category,
+        description: description || undefined,
+        date,
+        isRecurring,
+        recurrenceInterval: isRecurring ? recurrenceInterval : null,
+      },
       {
         onSuccess: () => {
           setAmount('');
           setDescription('');
           setDate('');
+          setIsRecurring(false);
           showToast('Expense added.');
         },
         onError: () => showToast("Couldn't add expense — try again.", 'error'),
@@ -254,7 +327,15 @@ export function ExpenseList({ projectId }: { projectId: string }) {
 
   function handleUpdate(
     id: string,
-    dto: { amount: number; currency: Currency; category: string; description?: string; date: string },
+    dto: {
+      amount: number;
+      currency: Currency;
+      category: string;
+      description?: string;
+      date: string;
+      isRecurring: boolean;
+      recurrenceInterval: RecurrenceInterval | null;
+    },
     onDone: () => void,
   ) {
     updateExpense.mutate(
@@ -269,8 +350,13 @@ export function ExpenseList({ projectId }: { projectId: string }) {
     );
   }
 
-  function handleDelete(id: string, amount: number, currency: Currency) {
-    if (!window.confirm(`Delete this expense of ${money(amount, currency)}?`)) return;
+  async function handleDelete(id: string, amount: number, currency: Currency) {
+    const confirmed = await confirm({
+      message: `Delete this expense of ${money(amount, currency)}?`,
+      confirmLabel: 'Delete',
+      tone: 'negative',
+    });
+    if (!confirmed) return;
     deleteExpense.mutate(id, {
       onSuccess: () => showToast('Expense deleted.'),
       onError: () => showToast("Couldn't delete expense — try again.", 'error'),
@@ -320,6 +406,25 @@ export function ExpenseList({ projectId }: { projectId: string }) {
             className={inputClass}
           />
         </Field>
+        <div className="flex items-end gap-3 sm:col-span-2">
+          <label className="flex items-center gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={isRecurring}
+              onChange={(e) => setIsRecurring(e.target.checked)}
+              className="h-4 w-4 rounded border-border"
+            />
+            Recurring
+          </label>
+          {isRecurring && (
+            <Select
+              value={recurrenceInterval}
+              onChange={(v) => setRecurrenceInterval(v as RecurrenceInterval)}
+              options={RECURRENCE_INTERVALS.map((i) => ({ value: i, label: i }))}
+              className="w-32"
+            />
+          )}
+        </div>
         <Button type="submit" disabled={createExpense.isPending} className="justify-self-start">
           Add expense
         </Button>

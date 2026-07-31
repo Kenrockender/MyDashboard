@@ -2,7 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { Timestamp } from 'firebase-admin/firestore';
 import { db } from '../firebase';
 import { COLLECTIONS, docToEntity } from '../collections';
-import { CreateExpenseDto } from './dto/create-expense.dto';
+import { CreateExpenseDto, type RecurrenceInterval } from './dto/create-expense.dto';
 import type { UpdateExpenseDto } from './dto/update-expense.dto';
 import { Currency } from '../common/currencies';
 
@@ -16,6 +16,8 @@ export interface Expense {
   description?: string;
   date: Date;
   createdAt: Date;
+  isRecurring?: boolean;
+  recurrenceInterval?: RecurrenceInterval | null;
 }
 
 class ExpensesService {
@@ -39,6 +41,7 @@ class ExpensesService {
     dto: CreateExpenseDto,
   ): Promise<Expense> {
     await this.assertProjectOwnership(userId, projectId);
+    const isRecurring = dto.isRecurring ?? false;
     const ref = await this.collection.add({
       userId,
       projectId,
@@ -48,6 +51,8 @@ class ExpensesService {
       description: dto.description ?? null,
       date: Timestamp.fromDate(new Date(dto.date)),
       createdAt: Timestamp.now(),
+      isRecurring,
+      recurrenceInterval: isRecurring ? (dto.recurrenceInterval ?? null) : null,
     });
     return docToEntity<Expense>(await ref.get());
   }
@@ -79,6 +84,15 @@ class ExpensesService {
     if (dto.description !== undefined) patch.description = dto.description;
     if (dto.date !== undefined)
       patch.date = Timestamp.fromDate(new Date(dto.date));
+    if (dto.isRecurring !== undefined) {
+      patch.isRecurring = dto.isRecurring;
+      // Turning recurrence off always clears the interval, regardless of
+      // what else was sent — a non-recurring expense has no interval.
+      if (!dto.isRecurring) patch.recurrenceInterval = null;
+    }
+    if (dto.recurrenceInterval !== undefined && dto.isRecurring !== false) {
+      patch.recurrenceInterval = dto.recurrenceInterval;
+    }
 
     await ref.update(patch);
     return docToEntity<Expense>(await ref.get());
