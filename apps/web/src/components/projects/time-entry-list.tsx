@@ -15,6 +15,7 @@ import { CurrencySelect } from '@/components/ui/currency-select';
 import { ListSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/lib/toast-context';
+import { useConfirm } from '@/lib/confirm-context';
 import { inputClass, money, type Currency } from '@/lib/ui';
 
 interface EntryFormValues {
@@ -155,6 +156,7 @@ export function TimeEntryList({ projectId }: { projectId: string }) {
   const logIncome = useLogTimeEntryAsIncome(projectId);
   const deleteEntry = useDeleteTimeEntry(projectId);
   const { showToast } = useToast();
+  const confirm = useConfirm();
 
   const [hours, setHours] = useState('');
   const [description, setDescription] = useState('');
@@ -235,21 +237,26 @@ export function TimeEntryList({ projectId }: { projectId: string }) {
     );
   }
 
-  function handleLogIncome(entry: TimeEntry) {
-    if (
-      !window.confirm(
-        `Log ${entry.hours}h at ${money(entry.hourlyRate ?? 0, entry.currency)}/h as a new income record?`,
-      )
-    )
-      return;
+  async function handleLogIncome(entry: TimeEntry) {
+    const confirmed = await confirm({
+      message: `Log ${entry.hours}h at ${money(entry.hourlyRate ?? 0, entry.currency)}/h as a new income record?`,
+      confirmLabel: 'Log income',
+      tone: 'accent',
+    });
+    if (!confirmed) return;
     logIncome.mutate(entry.id, {
       onSuccess: () => showToast('Logged as income.'),
       onError: () => showToast("Couldn't log this entry as income — try again.", 'error'),
     });
   }
 
-  function handleDelete(entry: TimeEntry) {
-    if (!window.confirm(`Delete this ${entry.hours}h time entry?`)) return;
+  async function handleDelete(entry: TimeEntry) {
+    const confirmed = await confirm({
+      message: `Delete this ${entry.hours}h time entry?`,
+      confirmLabel: 'Delete',
+      tone: 'negative',
+    });
+    if (!confirmed) return;
     deleteEntry.mutate(entry.id, {
       onSuccess: () => showToast('Time entry deleted.'),
       onError: () => showToast("Couldn't delete this entry — try again.", 'error'),

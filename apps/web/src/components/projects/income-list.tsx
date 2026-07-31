@@ -9,6 +9,7 @@ import { Select } from '@/components/ui/select';
 import { ListSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/lib/toast-context';
+import { useConfirm } from '@/lib/confirm-context';
 import { inputClass, money, type Currency } from '@/lib/ui';
 
 const INCOME_STATUSES = ['pending', 'paid', 'overdue'];
@@ -126,6 +127,7 @@ export function IncomeList({ projectId }: { projectId: string }) {
   const updateIncome = useUpdateIncome(projectId);
   const deleteIncome = useDeleteIncome(projectId);
   const { showToast } = useToast();
+  const confirm = useConfirm();
 
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState<Currency>('USD');
@@ -168,8 +170,13 @@ export function IncomeList({ projectId }: { projectId: string }) {
     );
   }
 
-  function handleDelete(id: string, amount: number, currency: Currency) {
-    if (!window.confirm(`Delete this income of ${money(amount, currency)}?`)) return;
+  async function handleDelete(id: string, amount: number, currency: Currency) {
+    const confirmed = await confirm({
+      message: `Delete this income of ${money(amount, currency)}?`,
+      confirmLabel: 'Delete',
+      tone: 'negative',
+    });
+    if (!confirmed) return;
     deleteIncome.mutate(id, {
       onSuccess: () => showToast('Income deleted.'),
       onError: () => showToast("Couldn't delete income — try again.", 'error'),
