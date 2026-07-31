@@ -2,6 +2,7 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { db } from '../firebase';
 import { COLLECTIONS, docToEntity } from '../collections';
 import { CreateClientDto } from './dto/create-client.dto';
+import type { UpdateClientDto } from './dto/update-client.dto';
 
 export interface Client {
   id: string;
@@ -60,7 +61,7 @@ class ClientsService {
   async update(
     userId: string,
     id: string,
-    dto: Partial<CreateClientDto>,
+    dto: UpdateClientDto,
   ): Promise<Client | null> {
     const ref = this.collection.doc(id);
     const doc = await ref.get();

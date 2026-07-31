@@ -3,6 +3,7 @@ import { db } from '../firebase';
 import { COLLECTIONS, docToEntity } from '../collections';
 import { calculateProfit } from '../common/calculate-profit';
 import { CreateProjectDto, DealType } from './dto/create-project.dto';
+import type { UpdateProjectDto } from './dto/update-project.dto';
 import { Currency } from '../common/currencies';
 import type { Client } from '../clients/clients.service';
 
@@ -165,7 +166,7 @@ class ProjectsService {
   async update(
     userId: string,
     id: string,
-    dto: Partial<CreateProjectDto>,
+    dto: UpdateProjectDto,
   ): Promise<Project | null> {
     const ref = this.collection.doc(id);
     const doc = await ref.get();

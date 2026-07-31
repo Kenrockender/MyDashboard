@@ -3,6 +3,7 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { db } from '../firebase';
 import { COLLECTIONS, docToEntity } from '../collections';
 import { CreateIncomeDto } from './dto/create-income.dto';
+import type { UpdateIncomeDto } from './dto/update-income.dto';
 import { Currency } from '../common/currencies';
 
 export interface Income {
@@ -63,7 +64,7 @@ class IncomeService {
   async update(
     userId: string,
     id: string,
-    dto: Partial<CreateIncomeDto>,
+    dto: UpdateIncomeDto,
   ): Promise<Income> {
     const ref = this.collection.doc(id);
     const doc = await ref.get();

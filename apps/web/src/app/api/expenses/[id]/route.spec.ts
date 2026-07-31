@@ -59,6 +59,22 @@ describe('PATCH /api/expenses/[id]', () => {
     expect(json.error.statusCode).toBe(401);
     expect(mockExpensesService.update).not.toHaveBeenCalled();
   });
+
+  it('rejects a PATCH body with fields outside the DTO whitelist with 400', async () => {
+    mockRequireUser.mockResolvedValue({ userId: 'user_1' });
+
+    const req = new NextRequest('http://localhost/api/expenses/expense_1', {
+      method: 'PATCH',
+      body: JSON.stringify({ amount: 50, userId: 'attacker-uid' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const res = await PATCH(req, { params: Promise.resolve({ id: 'expense_1' }) });
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error.statusCode).toBe(400);
+    expect(mockExpensesService.update).not.toHaveBeenCalled();
+  });
 });
 
 describe('DELETE /api/expenses/[id]', () => {

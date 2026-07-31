@@ -8,7 +8,7 @@ import {
 } from 'class-validator';
 import { CURRENCIES, type Currency } from '../../common/currencies';
 
-const EXPENSE_CATEGORIES = [
+export const EXPENSE_CATEGORIES = [
   'hosting',
   'domain',
   'api_usage',

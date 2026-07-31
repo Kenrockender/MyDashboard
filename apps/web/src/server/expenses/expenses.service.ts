@@ -3,6 +3,7 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { db } from '../firebase';
 import { COLLECTIONS, docToEntity } from '../collections';
 import { CreateExpenseDto } from './dto/create-expense.dto';
+import type { UpdateExpenseDto } from './dto/update-expense.dto';
 import { Currency } from '../common/currencies';
 
 export interface Expense {
@@ -63,7 +64,7 @@ class ExpensesService {
   async update(
     userId: string,
     id: string,
-    dto: Partial<CreateExpenseDto>,
+    dto: UpdateExpenseDto,
   ): Promise<Expense> {
     const ref = this.collection.doc(id);
     const doc = await ref.get();
