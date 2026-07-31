@@ -170,6 +170,56 @@ describe('InvoicesService', () => {
     });
   });
 
+  describe('findAllForUser', () => {
+    beforeEach(() => {
+      mockDb = createFakeFirestore({
+        invoices: [
+          {
+            id: 'inv_1',
+            userId: 'user_1',
+            invoiceNumber: 'INV-2026-0001',
+            clientId: 'client_1',
+            createdAt: '2026-07-01T00:00:00.000Z',
+          },
+          {
+            id: 'inv_2',
+            userId: 'user_1',
+            invoiceNumber: 'INV-2026-0002',
+            clientId: 'client_2',
+            createdAt: '2026-07-02T00:00:00.000Z',
+          },
+        ],
+      }).db;
+    });
+
+    it('paginates results, keyed off the createdAt cursor', async () => {
+      const first = await invoicesService.findAllForUser('user_1', {}, { limit: 1 });
+      expect(first.items.map((i) => i.id)).toEqual(['inv_2']);
+      expect(first.nextCursor).toBeTruthy();
+
+      const second = await invoicesService.findAllForUser(
+        'user_1',
+        {},
+        { limit: 1, cursor: first.nextCursor! },
+      );
+      expect(second.items.map((i) => i.id)).toEqual(['inv_1']);
+      expect(second.nextCursor).toBeNull();
+    });
+
+    it('matches search against the invoice number', async () => {
+      const page = await invoicesService.findAllForUser('user_1', { search: '0001' });
+      expect(page.items.map((i) => i.id)).toEqual(['inv_1']);
+    });
+
+    it('matches search against a resolved client id', async () => {
+      const page = await invoicesService.findAllForUser('user_1', {
+        search: 'acme',
+        matchingClientIds: ['client_2'],
+      });
+      expect(page.items.map((i) => i.id)).toEqual(['inv_2']);
+    });
+  });
+
   describe('scoping', () => {
     it('excludes another user from finding/updating/removing an invoice', async () => {
       mockDb = createFakeFirestore({

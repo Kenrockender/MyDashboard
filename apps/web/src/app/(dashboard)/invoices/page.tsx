@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { SearchInput } from '@/components/ui/search-input';
 import { ListSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
+import { LoadMoreButton } from '@/components/ui/load-more-button';
 import { money } from '@/lib/ui';
 
 const STATUS_FILTERS = ['all', 'draft', 'sent', 'paid', 'overdue'] as const;
@@ -17,9 +18,18 @@ export default function InvoicesPage() {
   const [status, setStatus] = useState<(typeof STATUS_FILTERS)[number]>('all');
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
-  const { data: invoices, isLoading, isError, refetch } = useAllInvoices(
-    status === 'all' ? {} : { status },
-  );
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useAllInvoices({
+    status: status === 'all' ? undefined : status,
+    search: debouncedSearch || undefined,
+  });
   const { data: clients } = useClients();
 
   const clientsById = useMemo(
@@ -27,20 +37,7 @@ export default function InvoicesPage() {
     [clients],
   );
 
-  // Invoice search is client-side (no dedicated search endpoint) — the same
-  // approach the Clients/Projects pages already use for their own filters.
-  const filteredInvoices = useMemo(() => {
-    if (!invoices) return invoices;
-    const needle = debouncedSearch.trim().toLowerCase();
-    if (!needle) return invoices;
-    return invoices.filter((inv) => {
-      const clientName = (inv.clientId && clientsById.get(inv.clientId)) || '';
-      return (
-        inv.invoiceNumber.toLowerCase().includes(needle) ||
-        clientName.toLowerCase().includes(needle)
-      );
-    });
-  }, [invoices, debouncedSearch, clientsById]);
+  const invoices = data?.pages.flatMap((page) => page.items);
 
   return (
     <div className="space-y-6">
@@ -76,14 +73,14 @@ export default function InvoicesPage() {
       {!isLoading && !isError && (
         <div className="overflow-hidden rounded-[14px] border border-border bg-paper-raised">
           <ul className="m-0 list-none p-0">
-            {filteredInvoices?.length === 0 && (
+            {invoices?.length === 0 && (
               <li className="px-5 py-6 text-center text-sm text-ink-muted">
-                {invoices?.length === 0
-                  ? "No invoices yet — create one from a project's Income section."
-                  : 'No invoices match your search.'}
+                {debouncedSearch
+                  ? 'No invoices match your search.'
+                  : "No invoices yet — create one from a project's Income section."}
               </li>
             )}
-            {filteredInvoices?.map((inv) => (
+            {invoices?.map((inv) => (
               <li key={inv.id} className="border-t border-hair px-5 py-3.5 first:border-t-0">
                 <Link
                   href={`/projects/${inv.projectId}`}
@@ -109,6 +106,9 @@ export default function InvoicesPage() {
               </li>
             ))}
           </ul>
+          {hasNextPage && (
+            <LoadMoreButton onClick={() => fetchNextPage()} loading={isFetchingNextPage} />
+          )}
         </div>
       )}
     </div>

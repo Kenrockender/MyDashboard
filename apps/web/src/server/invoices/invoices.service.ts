@@ -8,6 +8,7 @@ import { Currency } from '../common/currencies';
 import type { Income } from '../income/income.service';
 import type { Project } from '../projects/projects.service';
 import type { Client } from '../clients/clients.service';
+import { paginate, type Page } from '../common/paginate';
 
 export interface Invoice {
   id: string;
@@ -136,11 +137,30 @@ class InvoicesService {
     return snapshot.docs.map((doc) => docToEntity<Invoice>(doc));
   }
 
-  async findAllForUser(userId: string, status?: string): Promise<Invoice[]> {
+  async findAllForUser(
+    userId: string,
+    filters: { status?: string; search?: string; matchingClientIds?: string[] } = {},
+    pagination: { cursor?: string; limit?: number } = {},
+  ): Promise<Page<Invoice>> {
     let query = this.collection.where('userId', '==', userId);
-    if (status) query = query.where('status', '==', status);
+    if (filters.status) query = query.where('status', '==', filters.status);
     const snapshot = await query.orderBy('createdAt', 'desc').get();
-    return snapshot.docs.map((doc) => docToEntity<Invoice>(doc));
+    let invoices = snapshot.docs.map((doc) => docToEntity<Invoice>(doc));
+
+    // No dedicated search endpoint (Firestore can't do substring matching),
+    // so this scans the already user-scoped result in memory, matching on
+    // invoice number or on a client id the caller already resolved by name.
+    if (filters.search) {
+      const needle = filters.search.toLowerCase();
+      const clientIdSet = new Set(filters.matchingClientIds ?? []);
+      invoices = invoices.filter(
+        (invoice) =>
+          invoice.invoiceNumber.toLowerCase().includes(needle) ||
+          (invoice.clientId !== null && clientIdSet.has(invoice.clientId)),
+      );
+    }
+
+    return paginate(invoices, pagination);
   }
 
   async findOne(userId: string, id: string): Promise<Invoice> {

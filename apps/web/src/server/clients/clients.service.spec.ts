@@ -68,3 +68,39 @@ describe('ClientsService.update', () => {
     expect(result).toBeNull();
   });
 });
+
+describe('ClientsService.findAll', () => {
+  beforeEach(() => {
+    mockDb = createFakeFirestore({
+      clients: [
+        { id: 'client_1', userId: 'user_1', name: 'Kopi Kita', createdAt: '2026-07-01T00:00:00.000Z' },
+        { id: 'client_2', userId: 'user_1', name: 'Warung Bahagia', createdAt: '2026-07-02T00:00:00.000Z' },
+        { id: 'client_3', userId: 'user_2', name: 'Other User Co', createdAt: '2026-07-03T00:00:00.000Z' },
+      ],
+    }).db;
+  });
+
+  it('scopes results to the authenticated user', async () => {
+    const page = await clientsService.findAll('user_1');
+    expect(page.items.map((c) => c.id)).toEqual(['client_2', 'client_1']);
+  });
+
+  it('paginates results, keyed off the createdAt cursor', async () => {
+    const first = await clientsService.findAll('user_1', undefined, { limit: 1 });
+    expect(first.items.map((c) => c.id)).toEqual(['client_2']);
+    expect(first.nextCursor).toBeTruthy();
+
+    const second = await clientsService.findAll('user_1', undefined, {
+      limit: 1,
+      cursor: first.nextCursor!,
+    });
+    expect(second.items.map((c) => c.id)).toEqual(['client_1']);
+    expect(second.nextCursor).toBeNull();
+  });
+
+  it('applies search before pagination', async () => {
+    const page = await clientsService.findAll('user_1', 'kopi', { limit: 1 });
+    expect(page.items.map((c) => c.id)).toEqual(['client_1']);
+    expect(page.nextCursor).toBeNull();
+  });
+});

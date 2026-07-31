@@ -1,5 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import type { Page } from './pagination';
 import type { Currency } from '@/lib/ui';
 
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue';
@@ -34,6 +35,7 @@ export interface UpdateInvoiceInput {
 
 export interface InvoiceFilters {
   status?: string;
+  search?: string;
 }
 
 export function useInvoices(projectId: string) {
@@ -45,13 +47,18 @@ export function useInvoices(projectId: string) {
 }
 
 export function useAllInvoices(filters: InvoiceFilters = {}) {
-  const query = new URLSearchParams();
-  if (filters.status) query.set('status', filters.status);
-  const suffix = query.size ? `?${query.toString()}` : '';
-
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ['invoices', filters],
-    queryFn: () => apiClient.get<Invoice[]>(`/invoices${suffix}`),
+    queryFn: ({ pageParam }) => {
+      const query = new URLSearchParams();
+      if (filters.status) query.set('status', filters.status);
+      if (filters.search) query.set('search', filters.search);
+      if (pageParam) query.set('cursor', pageParam);
+      const suffix = query.size ? `?${query.toString()}` : '';
+      return apiClient.get<Page<Invoice>>(`/invoices${suffix}`);
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 }
 

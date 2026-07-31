@@ -16,7 +16,12 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   return withRoute(req, async () => {
     const user = await requireUser(req);
-    const search = req.nextUrl.searchParams.get('search') ?? undefined;
-    return ok(await clientsService.findAll(user.userId, search));
+    const sp = req.nextUrl.searchParams;
+    return ok(
+      await clientsService.findAll(user.userId, sp.get('search') ?? undefined, {
+        cursor: sp.get('cursor') ?? undefined,
+        limit: sp.get('limit') ? Number(sp.get('limit')) : undefined,
+      }),
+    );
   });
 }

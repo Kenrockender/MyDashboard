@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { useClients, useCreateClient, useUpdateClient, type Client } from '@/hooks/use-clients';
+import { useClientsInfinite, useCreateClient, useUpdateClient, type Client } from '@/hooks/use-clients';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { Button, LinkButton } from '@/components/ui/button';
 import { Field, FormPanel } from '@/components/ui/field';
@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { SearchInput } from '@/components/ui/search-input';
 import { ListSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
+import { LoadMoreButton } from '@/components/ui/load-more-button';
 import { useToast } from '@/lib/toast-context';
 import { inputClass } from '@/lib/ui';
 
@@ -134,7 +135,16 @@ function ClientRow({ client }: { client: Client }) {
 export default function ClientsPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
-  const { data: clients, isLoading, isError, refetch } = useClients(debouncedSearch);
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useClientsInfinite(debouncedSearch);
+  const clients = data?.pages.flatMap((page) => page.items);
   const createClient = useCreateClient();
   const { showToast } = useToast();
 
@@ -245,6 +255,9 @@ export default function ClientsPage() {
               <ClientRow key={c.id} client={c} />
             ))}
           </ul>
+          {hasNextPage && (
+            <LoadMoreButton onClick={() => fetchNextPage()} loading={isFetchingNextPage} />
+          )}
         </div>
       )}
     </div>

@@ -80,16 +80,32 @@ describe('GET /api/clients', () => {
     jest.resetAllMocks();
   });
 
-  it('returns the list wrapped in the { data } envelope, passing through ?search', async () => {
+  it('returns the page wrapped in the { data } envelope, passing through ?search', async () => {
     mockRequireUser.mockResolvedValue({ userId: 'user_1' });
-    mockClientsService.findAll.mockResolvedValue([]);
+    mockClientsService.findAll.mockResolvedValue({ items: [], nextCursor: null });
 
     const req = new NextRequest('http://localhost/api/clients?search=acme');
     const res = await GET(req);
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.data).toEqual([]);
-    expect(mockClientsService.findAll).toHaveBeenCalledWith('user_1', 'acme');
+    expect(json.data).toEqual({ items: [], nextCursor: null });
+    expect(mockClientsService.findAll).toHaveBeenCalledWith('user_1', 'acme', {
+      cursor: undefined,
+      limit: undefined,
+    });
+  });
+
+  it('passes cursor and limit through to the service', async () => {
+    mockRequireUser.mockResolvedValue({ userId: 'user_1' });
+    mockClientsService.findAll.mockResolvedValue({ items: [], nextCursor: null });
+
+    const req = new NextRequest('http://localhost/api/clients?cursor=2026-01-01T00:00:00.000Z&limit=500');
+    await GET(req);
+
+    expect(mockClientsService.findAll).toHaveBeenCalledWith('user_1', undefined, {
+      cursor: '2026-01-01T00:00:00.000Z',
+      limit: 500,
+    });
   });
 });

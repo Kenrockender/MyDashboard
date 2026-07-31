@@ -3,6 +3,7 @@ import { db } from '../firebase';
 import { COLLECTIONS, docToEntity } from '../collections';
 import { CreateClientDto } from './dto/create-client.dto';
 import type { UpdateClientDto } from './dto/update-client.dto';
+import { paginate, type Page } from '../common/paginate';
 
 export interface Client {
   id: string;
@@ -28,18 +29,25 @@ class ClientsService {
     return docToEntity<Client>(await ref.get());
   }
 
-  async findAll(userId: string, search?: string): Promise<Client[]> {
+  async findAll(
+    userId: string,
+    search?: string,
+    pagination: { cursor?: string; limit?: number } = {},
+  ): Promise<Page<Client>> {
     const snapshot = await this.collection
       .where('userId', '==', userId)
       .orderBy('createdAt', 'desc')
       .get();
-    const clients = snapshot.docs.map((doc) => docToEntity<Client>(doc));
+    let clients = snapshot.docs.map((doc) => docToEntity<Client>(doc));
 
     // Firestore has no case-insensitive substring operator, so the search
     // filter that used to be a SQL `contains` runs in memory.
-    if (!search) return clients;
-    const needle = search.toLowerCase();
-    return clients.filter((c) => c.name.toLowerCase().includes(needle));
+    if (search) {
+      const needle = search.toLowerCase();
+      clients = clients.filter((c) => c.name.toLowerCase().includes(needle));
+    }
+
+    return paginate(clients, pagination);
   }
 
   async findOne(userId: string, id: string) {
