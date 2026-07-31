@@ -18,10 +18,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button, LinkButton } from '@/components/ui/button';
 import { Field, FormPanel } from '@/components/ui/field';
 import { Select } from '@/components/ui/select';
+import { CurrencySelect } from '@/components/ui/currency-select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/lib/toast-context';
-import { inputClass } from '@/lib/ui';
+import { useConfirm } from '@/lib/confirm-context';
+import { inputClass, type Currency } from '@/lib/ui';
 
 const STATUSES = ['active', 'on_hold', 'completed'];
 
@@ -41,6 +43,8 @@ function ProjectDetailsForm({
   const [clientId, setClientId] = useState(project.clientId ?? '');
   const [status, setStatus] = useState(project.status);
   const [startDate, setStartDate] = useState(project.startDate?.slice(0, 10) ?? '');
+  const [budget, setBudget] = useState(project.budget ? String(project.budget) : '');
+  const [budgetCurrency, setBudgetCurrency] = useState<Currency>(project.budgetCurrency ?? 'USD');
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,6 +56,8 @@ function ProjectDetailsForm({
         clientId: clientId || null,
         status,
         startDate: startDate || null,
+        budget: budget ? Number(budget) : null,
+        budgetCurrency: budget ? budgetCurrency : null,
       },
       {
         onSuccess: () => {
@@ -99,6 +105,22 @@ function ProjectDetailsForm({
             className={inputClass}
           />
         </Field>
+        {project.dealType !== 'one_time' && (
+          <>
+            <Field label="Budget (optional)">
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="No budget set"
+                value={budget}
+                onChange={(e) => setBudget(e.target.value)}
+                className={inputClass}
+              />
+            </Field>
+            <CurrencySelect value={budgetCurrency} onChange={setBudgetCurrency} />
+          </>
+        )}
         <div className="flex items-center gap-4 sm:col-span-2">
           <Button type="submit" disabled={updateProject.isPending}>
             Save changes
@@ -123,6 +145,7 @@ export function ProjectDetailPanel({
   const { data: clients } = useClients();
   const archiveProject = useArchiveProject(projectId);
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
 
   const backLink = (
@@ -165,9 +188,14 @@ export function ProjectDetailPanel({
     );
   }
 
-  function handleArchive() {
+  async function handleArchive() {
     if (!project) return;
-    if (!window.confirm(`Archive "${project.name}"? It will be hidden from your projects list.`)) return;
+    const confirmed = await confirm({
+      message: `Archive "${project.name}"? It will be hidden from your projects list.`,
+      confirmLabel: 'Archive',
+      tone: 'negative',
+    });
+    if (!confirmed) return;
     archiveProject.mutate(undefined, {
       onSuccess: () => {
         showToast('Project archived.');
@@ -208,7 +236,11 @@ export function ProjectDetailPanel({
         <ProjectDetailsForm project={project} projectId={projectId} onClose={() => setEditing(false)} />
       )}
 
-      <ProjectTotalsCard totals={project.totals} />
+      <ProjectTotalsCard
+        totals={project.totals}
+        budget={project.budget}
+        budgetCurrency={project.budgetCurrency}
+      />
 
       {isOneTime ? (
         <SaleSummary projectId={projectId} />

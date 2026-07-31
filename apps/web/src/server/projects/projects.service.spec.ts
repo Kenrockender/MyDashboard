@@ -56,7 +56,17 @@ describe('ProjectsService.findOne totals', () => {
   it('searches project names within the authenticated user projects', async () => {
     const result = await projectsService.findAll('user_1', { search: 'WEB' });
 
-    expect(result.map((project) => project.id)).toEqual(['proj_1']);
+    expect(result.items.map((project) => project.id)).toEqual(['proj_1']);
+  });
+
+  it('paginates results, keyed off the createdAt cursor', async () => {
+    const first = await projectsService.findAll('user_1', {}, { limit: 1 });
+    expect(first.items.map((p) => p.id)).toEqual(['proj_2']);
+    expect(first.nextCursor).toBeTruthy();
+
+    const second = await projectsService.findAll('user_1', {}, { limit: 1, cursor: first.nextCursor! });
+    expect(second.items.map((p) => p.id)).toEqual(['proj_1']);
+    expect(second.nextCursor).toBeNull();
   });
 });
 
@@ -100,5 +110,63 @@ describe('ProjectsService one-time sale', () => {
     const project = await projectsService.create('user_1', { name: 'Ongoing work' });
     expect(project.dealType).toBe('ongoing');
     expect(project.status).toBe('active');
+  });
+
+  it('ignores a budget passed on a one-time sale — budget only applies to ongoing projects', async () => {
+    const project = await projectsService.create('user_1', {
+      name: 'Logo for Kopi Kita',
+      dealType: 'one_time',
+      saleAmount: 1500,
+      budget: 999,
+      budgetCurrency: 'USD',
+    });
+    expect(project.budget).toBeNull();
+    expect(project.budgetCurrency).toBeNull();
+  });
+});
+
+describe('ProjectsService budget', () => {
+  beforeEach(() => {
+    mockDb = createFakeFirestore().db;
+  });
+
+  it('stores a budget set at creation', async () => {
+    const project = await projectsService.create('user_1', {
+      name: 'Ongoing work',
+      budget: 5000,
+      budgetCurrency: 'USD',
+    });
+    expect(project.budget).toBe(5000);
+    expect(project.budgetCurrency).toBe('USD');
+  });
+
+  it('defaults to no budget when none is given', async () => {
+    const project = await projectsService.create('user_1', { name: 'Ongoing work' });
+    expect(project.budget).toBeNull();
+    expect(project.budgetCurrency).toBeNull();
+  });
+
+  it('sets a budget via update', async () => {
+    const project = await projectsService.create('user_1', { name: 'Ongoing work' });
+    const updated = await projectsService.update('user_1', project.id, {
+      budget: 3000,
+      budgetCurrency: 'IDR',
+    });
+    expect(updated!.budget).toBe(3000);
+    expect(updated!.budgetCurrency).toBe('IDR');
+  });
+
+  it('clears a budget via update by passing null', async () => {
+    const project = await projectsService.create('user_1', {
+      name: 'Ongoing work',
+      budget: 5000,
+      budgetCurrency: 'USD',
+    });
+    const updated = await projectsService.update('user_1', project.id, {
+      budget: null,
+      budgetCurrency: null,
+    });
+    expect(updated!.budget).toBeNull();
+    expect(updated!.budgetCurrency).toBeNull();
   });
 });

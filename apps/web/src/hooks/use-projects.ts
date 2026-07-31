@@ -1,5 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import type { Page } from './pagination';
 import type { Currency } from '@/lib/ui';
 
 export type DealType = 'ongoing' | 'one_time';
@@ -18,6 +19,9 @@ export interface Project {
   dealType: DealType;
   clientId?: string | null;
   startDate?: string | null;
+  /** Ongoing projects only — an optional spending target, compared against actual expenses. */
+  budget?: number | null;
+  budgetCurrency?: Currency | null;
 }
 export interface ProjectDetail extends Project { totals: ProfitTotals[]; }
 
@@ -31,6 +35,9 @@ export interface CreateProjectInput {
   saleAmount?: number;
   saleCurrency?: Currency;
   cost?: number;
+  /** Ongoing projects only. */
+  budget?: number | null;
+  budgetCurrency?: Currency | null;
 }
 
 export interface ProjectFilters {
@@ -41,16 +48,20 @@ export interface ProjectFilters {
 }
 
 export function useProjects(filters: ProjectFilters = {}) {
-  const query = new URLSearchParams();
-  if (filters.search) query.set('search', filters.search);
-  if (filters.status) query.set('status', filters.status);
-  if (filters.clientId) query.set('clientId', filters.clientId);
-  if (filters.dealType) query.set('dealType', filters.dealType);
-  const suffix = query.size ? `?${query.toString()}` : '';
-
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ['projects', filters],
-    queryFn: () => apiClient.get<Project[]>(`/projects${suffix}`),
+    queryFn: ({ pageParam }) => {
+      const query = new URLSearchParams();
+      if (filters.search) query.set('search', filters.search);
+      if (filters.status) query.set('status', filters.status);
+      if (filters.clientId) query.set('clientId', filters.clientId);
+      if (filters.dealType) query.set('dealType', filters.dealType);
+      if (pageParam) query.set('cursor', pageParam);
+      const suffix = query.size ? `?${query.toString()}` : '';
+      return apiClient.get<Page<Project>>(`/projects${suffix}`);
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 }
 

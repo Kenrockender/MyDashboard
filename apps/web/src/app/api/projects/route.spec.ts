@@ -85,9 +85,9 @@ describe('GET /api/projects', () => {
     jest.resetAllMocks();
   });
 
-  it('returns the list wrapped in the { data } envelope, passing through query filters', async () => {
+  it('returns the page wrapped in the { data } envelope, passing through query filters', async () => {
     mockRequireUser.mockResolvedValue({ userId: 'user_1' });
-    mockProjectsService.findAll.mockResolvedValue([]);
+    mockProjectsService.findAll.mockResolvedValue({ items: [], nextCursor: null });
 
     const req = new NextRequest(
       'http://localhost/api/projects?status=active&clientId=client_1&search=web&dealType=ongoing',
@@ -96,12 +96,25 @@ describe('GET /api/projects', () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.data).toEqual([]);
-    expect(mockProjectsService.findAll).toHaveBeenCalledWith('user_1', {
-      status: 'active',
-      clientId: 'client_1',
-      search: 'web',
-      dealType: 'ongoing',
-    });
+    expect(json.data).toEqual({ items: [], nextCursor: null });
+    expect(mockProjectsService.findAll).toHaveBeenCalledWith(
+      'user_1',
+      { status: 'active', clientId: 'client_1', search: 'web', dealType: 'ongoing' },
+      { cursor: undefined, limit: undefined },
+    );
+  });
+
+  it('passes cursor and limit through to the service', async () => {
+    mockRequireUser.mockResolvedValue({ userId: 'user_1' });
+    mockProjectsService.findAll.mockResolvedValue({ items: [], nextCursor: null });
+
+    const req = new NextRequest('http://localhost/api/projects?cursor=2026-01-01T00:00:00.000Z&limit=10');
+    await GET(req);
+
+    expect(mockProjectsService.findAll).toHaveBeenCalledWith(
+      'user_1',
+      { status: undefined, clientId: undefined, search: undefined, dealType: undefined },
+      { cursor: '2026-01-01T00:00:00.000Z', limit: 10 },
+    );
   });
 });

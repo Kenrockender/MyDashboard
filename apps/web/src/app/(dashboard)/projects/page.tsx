@@ -14,6 +14,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { SearchInput } from '@/components/ui/search-input';
 import { ListSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
+import { LoadMoreButton } from '@/components/ui/load-more-button';
 import { ProjectDetailPanel } from '@/components/projects/project-detail-panel';
 import { useToast } from '@/lib/toast-context';
 import { inputClass, type Currency } from '@/lib/ui';
@@ -46,6 +47,8 @@ function NewProjectForm() {
   const [saleAmount, setSaleAmount] = useState('');
   const [saleCurrency, setSaleCurrency] = useState<Currency>('USD');
   const [cost, setCost] = useState('');
+  const [budget, setBudget] = useState('');
+  const [budgetCurrency, setBudgetCurrency] = useState<Currency>('USD');
 
   function reset() {
     setName('');
@@ -54,6 +57,7 @@ function NewProjectForm() {
     setStartDate('');
     setSaleAmount('');
     setCost('');
+    setBudget('');
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -71,7 +75,11 @@ function NewProjectForm() {
               saleCurrency,
               cost: cost ? Number(cost) : undefined,
             }
-          : { status }),
+          : {
+              status,
+              budget: budget ? Number(budget) : undefined,
+              budgetCurrency: budget ? budgetCurrency : undefined,
+            }),
       },
       {
         onSuccess: () => {
@@ -138,13 +146,27 @@ function NewProjectForm() {
             </Field>
           </>
         ) : (
-          <Field label="Status">
-            <Select
-              value={status}
-              onChange={setStatus}
-              options={STATUSES.map((s) => ({ value: s, label: s.replace('_', ' ') }))}
-            />
-          </Field>
+          <>
+            <Field label="Status">
+              <Select
+                value={status}
+                onChange={setStatus}
+                options={STATUSES.map((s) => ({ value: s, label: s.replace('_', ' ') }))}
+              />
+            </Field>
+            <Field label="Budget (optional)">
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={budget}
+                onChange={(e) => setBudget(e.target.value)}
+                className={inputClass}
+              />
+            </Field>
+            <CurrencySelect value={budgetCurrency} onChange={setBudgetCurrency} />
+          </>
         )}
         <Field label="Start date">
           <input
@@ -172,12 +194,21 @@ export default function ProjectsPage() {
   const [clientFilter, setClientFilter] = useState('');
   const [dealTypeFilter, setDealTypeFilter] = useState<DealType | ''>('');
   const debouncedSearch = useDebouncedValue(search, 300);
-  const { data: projects, isLoading, isError, refetch } = useProjects({
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useProjects({
     search: debouncedSearch,
     status: statusFilter || undefined,
     clientId: clientFilter || undefined,
     dealType: dealTypeFilter || undefined,
   });
+  const projects = data?.pages.flatMap((page) => page.items);
   const { data: clients } = useClients();
 
   function handleRowClick(e: React.MouseEvent, id: string) {
@@ -271,6 +302,9 @@ export default function ProjectsPage() {
                 )}
               </Link>
             ))}
+            {hasNextPage && (
+              <LoadMoreButton onClick={() => fetchNextPage()} loading={isFetchingNextPage} />
+            )}
           </div>
         )}
       </div>

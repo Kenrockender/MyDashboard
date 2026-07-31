@@ -4,6 +4,7 @@ import { COLLECTIONS, docToEntity } from '../collections';
 import { calculateProfit } from '../common/calculate-profit';
 import { CreateProjectDto, DealType } from './dto/create-project.dto';
 import type { UpdateProjectDto } from './dto/update-project.dto';
+import { paginate, type Page } from '../common/paginate';
 import { Currency } from '../common/currencies';
 import type { Client } from '../clients/clients.service';
 
@@ -18,6 +19,8 @@ export interface Project {
   endDate?: Date | null;
   archived: boolean;
   createdAt: Date;
+  budget?: number | null;
+  budgetCurrency?: Currency | null;
 }
 
 class ProjectsService {
@@ -42,6 +45,8 @@ class ProjectsService {
       startDate,
       archived: false,
       createdAt: Timestamp.now(),
+      budget: dealType === 'one_time' ? null : (dto.budget ?? null),
+      budgetCurrency: dealType === 'one_time' ? null : (dto.budgetCurrency ?? null),
     });
 
     if (dealType === 'one_time') {
@@ -101,7 +106,8 @@ class ProjectsService {
       search?: string;
       dealType?: string;
     },
-  ): Promise<Project[]> {
+    pagination: { cursor?: string; limit?: number } = {},
+  ): Promise<Page<Project>> {
     let query = this.collection
       .where('userId', '==', userId)
       .where('archived', '==', filters.archived ?? false);
@@ -113,15 +119,18 @@ class ProjectsService {
       query = query.where('dealType', '==', filters.dealType);
 
     const snapshot = await query.orderBy('createdAt', 'desc').get();
-    const projects = snapshot.docs.map((doc) => docToEntity<Project>(doc));
+    let projects = snapshot.docs.map((doc) => docToEntity<Project>(doc));
 
     // Firestore does not offer case-insensitive substring matching. Filtering
     // the already user-scoped result keeps project search predictable.
-    if (!filters.search) return projects;
-    const needle = filters.search.toLowerCase();
-    return projects.filter((project) =>
-      project.name.toLowerCase().includes(needle),
-    );
+    if (filters.search) {
+      const needle = filters.search.toLowerCase();
+      projects = projects.filter((project) =>
+        project.name.toLowerCase().includes(needle),
+      );
+    }
+
+    return paginate(projects, pagination);
   }
 
   async findOne(userId: string, id: string) {
@@ -181,6 +190,8 @@ class ProjectsService {
         ? Timestamp.fromDate(new Date(dto.startDate))
         : null;
     }
+    if (dto.budget !== undefined) patch.budget = dto.budget;
+    if (dto.budgetCurrency !== undefined) patch.budgetCurrency = dto.budgetCurrency;
 
     await ref.update(patch);
     return docToEntity<Project>(await ref.get());

@@ -18,12 +18,19 @@ export async function GET(req: NextRequest) {
     const user = await requireUser(req);
     const sp = req.nextUrl.searchParams;
     return ok(
-      await projectsService.findAll(user.userId, {
-        status: sp.get('status') ?? undefined,
-        clientId: sp.get('clientId') ?? undefined,
-        search: sp.get('search') ?? undefined,
-        dealType: sp.get('dealType') ?? undefined,
-      }),
+      await projectsService.findAll(
+        user.userId,
+        {
+          status: sp.get('status') ?? undefined,
+          clientId: sp.get('clientId') ?? undefined,
+          search: sp.get('search') ?? undefined,
+          dealType: sp.get('dealType') ?? undefined,
+        },
+        {
+          cursor: sp.get('cursor') ?? undefined,
+          limit: sp.get('limit') ? Number(sp.get('limit')) : undefined,
+        },
+      ),
     );
   });
 }

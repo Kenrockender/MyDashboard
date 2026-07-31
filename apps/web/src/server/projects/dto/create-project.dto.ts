@@ -47,4 +47,14 @@ export class CreateProjectDto {
   @IsNumber()
   @Min(0)
   cost?: number;
+
+  /** Ongoing projects only: an optional spending target, compared against actual expenses. */
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  budget?: number;
+
+  @IsOptional()
+  @IsIn(CURRENCIES)
+  budgetCurrency?: Currency;
 }
