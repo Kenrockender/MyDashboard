@@ -35,22 +35,28 @@ export interface UpcomingRecurringExpensesSummary {
   entries: UpcomingRecurringExpenseEntry[];
 }
 
-/** The one query in the app that polls — notifications are a passive
- *  "things you should know" signal, not something the user refreshes by
- *  navigating like every other list here. */
-export function useOverdueIncome() {
-  return useQuery({
-    queryKey: ['notifications', 'overdue-income'],
-    queryFn: () => apiClient.get<OverdueIncomeSummary>('/notifications/overdue-income'),
-    refetchInterval: 5 * 60 * 1000,
-  });
+export interface NotificationsSummary {
+  overdueIncome: OverdueIncomeSummary;
+  upcomingRecurringExpenses: UpcomingRecurringExpensesSummary;
 }
 
-export function useUpcomingRecurringExpenses() {
+/**
+ * The one query in the app that polls — notifications are a passive "things
+ * you should know" signal, not something the user refreshes by navigating
+ * like every other list here.
+ *
+ * Both kinds come from one endpoint, and polling pauses when the tab is in
+ * the background: overdue income and upcoming bills move on the scale of
+ * days, so a tab left open overnight was spending reads on the fact that
+ * nothing had changed.
+ */
+const POLL_INTERVAL_MS = 15 * 60 * 1000;
+
+export function useNotifications() {
   return useQuery({
-    queryKey: ['notifications', 'upcoming-recurring-expenses'],
-    queryFn: () =>
-      apiClient.get<UpcomingRecurringExpensesSummary>('/notifications/upcoming-recurring-expenses'),
-    refetchInterval: 5 * 60 * 1000,
+    queryKey: ['notifications'],
+    queryFn: () => apiClient.get<NotificationsSummary>('/notifications'),
+    refetchInterval: POLL_INTERVAL_MS,
+    refetchIntervalInBackground: false,
   });
 }
