@@ -217,25 +217,58 @@ export function InvoiceList({ projectId }: { projectId: string }) {
             </span>
             <ul className="m-0 mt-2 list-none space-y-1.5 p-0">
               {invoiceableIncome.map((i) => {
-                const disabled =
-                  !!selectedCurrency && i.currency !== selectedCurrency && !selected.includes(i.id);
+                const isSelected = selected.includes(i.id);
+                const disabled = !!selectedCurrency && i.currency !== selectedCurrency && !isSelected;
                 return (
-                  <li
-                    key={i.id}
-                    className={`flex items-center gap-2 text-sm ${disabled ? 'text-ink-muted/50' : 'text-ink'}`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.includes(i.id)}
-                      onChange={() => toggleSelected(i.id)}
-                      disabled={disabled}
-                      aria-label={i.description || 'Income'}
-                      className="h-4 w-4 rounded border-border disabled:cursor-not-allowed"
-                    />
-                    <span className="min-w-0 flex-1 truncate">{i.description || 'Income'}</span>
-                    <span className="font-mono text-xs text-ink-muted">
-                      {money(i.amount, i.currency)}
-                    </span>
+                  <li key={i.id}>
+                    {/* The whole row is the control — a bare browser checkbox
+                        can't be restyled to match the rest of the UI, so it's
+                        visually replaced by a custom tick box while staying a
+                        real checkbox for keyboard and screen-reader users. */}
+                    <label
+                      className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                        disabled
+                          ? 'cursor-not-allowed border-transparent text-ink-muted/50'
+                          : isSelected
+                            ? 'cursor-pointer border-accent/40 bg-accent-soft text-ink'
+                            : 'cursor-pointer border-transparent text-ink hover:bg-hair/40'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelected(i.id)}
+                        disabled={disabled}
+                        // Without this the wrapping <label> would fold the
+                        // amount into the accessible name ("Milestone 1$500.00").
+                        aria-label={i.description || 'Income'}
+                        className="peer sr-only"
+                      />
+                      <span
+                        aria-hidden
+                        className={`flex h-[18px] w-[18px] flex-none items-center justify-center rounded-[5px] border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-accent/40 ${
+                          isSelected
+                            ? 'border-accent bg-accent text-accent-ink'
+                            : 'border-border bg-paper'
+                        }`}
+                      >
+                        {isSelected && (
+                          <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none">
+                            <path
+                              d="M3.5 8.5l3 3 6-7"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">{i.description || 'Income'}</span>
+                      <span className="font-tabular font-mono text-xs text-ink-muted">
+                        {money(i.amount, i.currency)}
+                      </span>
+                    </label>
                   </li>
                 );
               })}
