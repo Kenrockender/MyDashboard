@@ -34,6 +34,36 @@ export interface RevenueBreakdownEntry {
   total: number;
 }
 
+export interface PphUmkmEstimate {
+  year: number;
+  grossRevenueIdr: number;
+  exemptThresholdIdr: number;
+  taxableAmountIdr: number;
+  rate: number;
+  estimatedTaxIdr: number;
+}
+
+export interface ReportsSummary {
+  trend: MonthlyTrendEntry[];
+  profitability: ProfitabilityEntry[];
+  expenseBreakdown: ExpenseBreakdownEntry[];
+  revenueBreakdown: RevenueBreakdownEntry[];
+  /** Newest year first; the tax-year dropdown is built from this. */
+  taxEstimates: PphUmkmEstimate[];
+}
+
+/**
+ * One request for the whole Reports page. The month picker and tax-year
+ * dropdown filter what's already here rather than refetching — the trend
+ * covers every month, and estimates come back for a span of years.
+ */
+export function useReportsSummary() {
+  return useQuery({
+    queryKey: ['reports', 'summary'],
+    queryFn: () => apiClient.get<ReportsSummary>('/reports/summary'),
+  });
+}
+
 export function useMonthlyReport(month: string) {
   return useQuery({
     queryKey: ['reports', 'monthly', month],

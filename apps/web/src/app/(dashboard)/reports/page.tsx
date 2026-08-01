@@ -1,13 +1,6 @@
 'use client';
 import { useState } from 'react';
-import {
-  useMonthlyReport,
-  useTrendReport,
-  useProfitabilityReport,
-  useExpenseReport,
-  useRevenueReport,
-} from '@/hooks/use-reports';
-import { usePphUmkmEstimate } from '@/hooks/use-tax';
+import { useReportsSummary } from '@/hooks/use-reports';
 import { TrendChart } from '@/components/dashboard/trend-chart';
 import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
@@ -70,33 +63,34 @@ function DownloadReportPdf({ path, filename }: { path: string; filename: string 
 // needs a currency column.
 const COLUMNS_5 = 'grid grid-cols-[2.2fr_1fr_1fr_1fr_0.9fr] gap-3 px-5';
 
-const CURRENT_YEAR = new Date().getFullYear();
-const TAX_YEARS = Array.from({ length: 7 }, (_, i) => CURRENT_YEAR - i);
-
 export default function ReportsPage() {
   const [month, setMonth] = useState(currentMonth());
   const [taxYear, setTaxYear] = useState(new Date().getFullYear());
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>('USD');
-  const monthlyQuery = useMonthlyReport(month);
-  const trendQuery = useTrendReport();
-  const taxQuery = usePphUmkmEstimate(taxYear);
-  const profitabilityQuery = useProfitabilityReport();
-  const expenseQuery = useExpenseReport();
-  const revenueQuery = useRevenueReport();
 
-  const { data: monthly } = monthlyQuery;
-  const { data: trend } = trendQuery;
-  const { data: taxEstimate } = taxQuery;
-  const { data: profitability } = profitabilityQuery;
-  const { data: expenses } = expenseQuery;
-  const { data: revenue } = revenueQuery;
+  // One request backs the whole page; the month picker, tax-year dropdown and
+  // currency toggle all filter what's already loaded.
+  const summaryQuery = useReportsSummary();
+  const { data: summary, isLoading, isError, refetch } = summaryQuery;
+
+  const trend = summary?.trend;
+  const profitability = summary?.profitability;
+  const expenses = summary?.expenseBreakdown;
+  const revenue = summary?.revenueBreakdown;
+
+  // The trend already carries every month, so the monthly summary card is a
+  // filter over it rather than its own request.
+  const monthly = trend?.filter((t) => t.month === month);
+
+  const taxYears = summary?.taxEstimates.map((e) => e.year) ?? [taxYear];
+  const taxEstimate =
+    summary?.taxEstimates.find((e) => e.year === taxYear) ?? summary?.taxEstimates[0];
 
   // Every section used to stack one block per currency, which made the page
   // enormous once a second currency appeared. Now a single toggle picks the
   // currency and every section below follows it — same data, one column of it.
   const availableCurrencies = [
     ...new Set([
-      ...(monthly ?? []).map((m) => m.currency),
       ...(profitability ?? []).map((p) => p.currency),
       ...(expenses ?? []).map((e) => e.currency),
       ...(revenue ?? []).map((r) => r.currency),
@@ -114,6 +108,17 @@ export default function ReportsPage() {
   const clientEntries = (revenue ?? []).filter((r) => r.currency === activeCurrency);
   const expenseTotal = categoryEntries.reduce((sum, e) => sum + e.total, 0);
   const revenueTotal = clientEntries.reduce((sum, r) => sum + r.total, 0);
+
+  // One request means one failure mode, so a single banner replaces the six
+  // per-section error states this page used to carry.
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Reports" />
+        <ErrorState message="Couldn't load reports." onRetry={refetch} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -153,10 +158,7 @@ export default function ReportsPage() {
           Monthly summary
         </SectionHeading>
 
-        {monthlyQuery.isLoading && <Skeleton className="h-24 rounded-xl" />}
-        {monthlyQuery.isError && (
-          <ErrorState message="Couldn't load the monthly summary." onRetry={monthlyQuery.refetch} />
-        )}
+        {isLoading && <Skeleton className="h-24 rounded-xl" />}
         {monthly && (
           <>
             <div className="mb-3 font-display text-lg italic text-ink-muted">
@@ -200,10 +202,7 @@ export default function ReportsPage() {
         >
           Monthly trend
         </SectionHeading>
-        {trendQuery.isLoading && <Skeleton className="h-72 rounded-[14px]" />}
-        {trendQuery.isError && (
-          <ErrorState message="Couldn't load the monthly trend." onRetry={trendQuery.refetch} />
-        )}
+        {isLoading && <Skeleton className="h-72 rounded-[14px]" />}
         {trend && <TrendChart data={trendForCurrency} currency={activeCurrency} />}
       </section>
 
@@ -215,7 +214,7 @@ export default function ReportsPage() {
               value={String(taxYear)}
               onChange={(v) => setTaxYear(Number(v))}
               aria-label="Tax year"
-              options={TAX_YEARS.map((y) => ({ value: String(y), label: String(y) }))}
+              options={taxYears.map((y) => ({ value: String(y), label: String(y) }))}
               className="w-28"
             />
           }
@@ -223,10 +222,7 @@ export default function ReportsPage() {
           Estimasi Pajak — PPh Final UMKM
         </SectionHeading>
 
-        {taxQuery.isLoading && <Skeleton className="h-24 rounded-xl" />}
-        {taxQuery.isError && (
-          <ErrorState message="Couldn't load the tax estimate." onRetry={taxQuery.refetch} />
-        )}
+        {isLoading && <Skeleton className="h-24 rounded-xl" />}
         {taxEstimate && (
           <>
             <StatRow
@@ -257,10 +253,7 @@ export default function ReportsPage() {
       </Card>
 
       <section className="space-y-3">
-        {profitabilityQuery.isLoading && <ListSkeleton rows={3} />}
-        {profitabilityQuery.isError && (
-          <ErrorState message="Couldn't load profitability." onRetry={profitabilityQuery.refetch} />
-        )}
+        {isLoading && <ListSkeleton rows={3} />}
         {profitability && (
           <Card padded={false}>
             <div className="flex items-center justify-between gap-4 border-b border-hair px-5 py-4">
@@ -319,10 +312,7 @@ export default function ReportsPage() {
             <h2 className="font-display text-lg italic text-ink sm:text-xl">Expenses by category</h2>
             <DownloadReportPdf path="/reports/expenses/pdf" filename="expense-breakdown.pdf" />
           </div>
-          {expenseQuery.isLoading && <Skeleton className="h-48" />}
-          {expenseQuery.isError && (
-            <ErrorState message="Couldn't load expense breakdown." onRetry={expenseQuery.refetch} />
-          )}
+          {isLoading && <Skeleton className="h-48" />}
           {expenses && categoryEntries.length === 0 && (
             <p className="text-sm text-ink-muted">No expenses yet.</p>
           )}
@@ -342,10 +332,7 @@ export default function ReportsPage() {
             <h2 className="font-display text-lg italic text-ink sm:text-xl">Revenue by client</h2>
             <DownloadReportPdf path="/reports/revenue/pdf" filename="revenue-by-client.pdf" />
           </div>
-          {revenueQuery.isLoading && <Skeleton className="h-48" />}
-          {revenueQuery.isError && (
-            <ErrorState message="Couldn't load revenue by client." onRetry={revenueQuery.refetch} />
-          )}
+          {isLoading && <Skeleton className="h-48" />}
           {revenue && clientEntries.length === 0 && (
             <p className="text-sm text-ink-muted">No revenue yet.</p>
           )}
