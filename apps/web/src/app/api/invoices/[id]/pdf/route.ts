@@ -10,7 +10,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   return withRoute(req, async () => {
     const user = await requireUser(req);
     const { id } = await params;
-    const { invoice, project, client, incomeLines } = await invoicesService.getPdfData(user.userId, id);
+    const { invoice, project, client, incomeLines } = await invoicesService.getDetail(user.userId, id);
     const buffer = await pdfService.renderInvoice(invoice, project, client, incomeLines);
     return new Response(new Uint8Array(buffer), {
       headers: {

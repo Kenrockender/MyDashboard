@@ -4,11 +4,14 @@ import { requireUser } from '@/server/require-user';
 import { invoicesService } from '@/server/invoices/invoices.service';
 import { UpdateInvoiceDto } from '@/server/invoices/dto/update-invoice.dto';
 
+// Returns the joined view (project/client/income lines), not the bare invoice
+// document — an invoice on its own is just ids and a total, which isn't enough
+// to render the detail page.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   return withRoute(req, async () => {
     const user = await requireUser(req);
     const { id } = await params;
-    return ok(await invoicesService.findOne(user.userId, id));
+    return ok(await invoicesService.getDetail(user.userId, id));
   });
 }
 

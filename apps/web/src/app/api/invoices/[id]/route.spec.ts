@@ -7,7 +7,7 @@ jest.mock('@/server/invoices/invoices.service', () => ({
     findAllForProject: jest.fn(),
     findAllForUser: jest.fn(),
     findOne: jest.fn(),
-    getPdfData: jest.fn(),
+    getDetail: jest.fn(),
     update: jest.fn(),
     send: jest.fn(),
     remove: jest.fn(),
@@ -44,17 +44,23 @@ describe('GET /api/invoices/[id]', () => {
     jest.resetAllMocks();
   });
 
-  it('returns the invoice wrapped in the { data } envelope', async () => {
+  it('returns the joined invoice detail wrapped in the { data } envelope', async () => {
     mockRequireUser.mockResolvedValue({ userId: 'user_1' });
-    mockInvoicesService.findOne.mockResolvedValue(fixture);
+    mockInvoicesService.getDetail.mockResolvedValue({
+      invoice: fixture,
+      project: { id: 'project_1', name: 'Website Redesign' },
+      client: null,
+      incomeLines: [],
+    } as never);
 
     const req = new NextRequest('http://localhost/api/invoices/invoice_1');
     const res = await GET(req, { params: Promise.resolve({ id: 'invoice_1' }) });
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.data.id).toBe('invoice_1');
-    expect(mockInvoicesService.findOne).toHaveBeenCalledWith('user_1', 'invoice_1');
+    expect(json.data.invoice.id).toBe('invoice_1');
+    expect(json.data.project.name).toBe('Website Redesign');
+    expect(mockInvoicesService.getDetail).toHaveBeenCalledWith('user_1', 'invoice_1');
   });
 
   it('rejects an unauthenticated request with 401', async () => {

@@ -7,7 +7,7 @@ jest.mock('@/server/invoices/invoices.service', () => ({
     findAllForProject: jest.fn(),
     findAllForUser: jest.fn(),
     findOne: jest.fn(),
-    getPdfData: jest.fn(),
+    getDetail: jest.fn(),
     update: jest.fn(),
     send: jest.fn(),
     remove: jest.fn(),

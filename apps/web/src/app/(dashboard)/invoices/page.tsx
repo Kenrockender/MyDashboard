@@ -83,7 +83,7 @@ export default function InvoicesPage() {
             {invoices?.map((inv) => (
               <li key={inv.id} className="border-t border-hair px-5 py-3.5 first:border-t-0">
                 <Link
-                  href={`/projects/${inv.projectId}`}
+                  href={`/invoices/${inv.id}`}
                   className="flex items-center justify-between gap-4"
                 >
                   <div className="min-w-0">

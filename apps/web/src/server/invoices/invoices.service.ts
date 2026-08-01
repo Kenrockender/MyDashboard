@@ -171,9 +171,10 @@ class InvoicesService {
     return docToEntity<Invoice>(doc);
   }
 
-  /** Joins in the project/client/income data a rendered PDF needs — the
-   *  invoice document itself only stores ids and the money snapshot. */
-  async getPdfData(
+  /** Joins in the project/client/income data the invoice detail view and the
+   *  rendered PDF both need — the invoice document itself only stores ids and
+   *  the money snapshot. */
+  async getDetail(
     userId: string,
     id: string,
   ): Promise<{

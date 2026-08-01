@@ -38,6 +38,28 @@ export interface InvoiceFilters {
   search?: string;
 }
 
+/** The joined shape `GET /api/invoices/:id` returns — enough to render the detail page. */
+export interface InvoiceDetail {
+  invoice: Invoice;
+  project: { id: string; name: string; status: string };
+  client: { id: string; name: string; email?: string; company?: string } | null;
+  incomeLines: {
+    id: string;
+    amount: number;
+    currency: Currency;
+    description?: string;
+    date: string;
+  }[];
+}
+
+export function useInvoice(id: string) {
+  return useQuery({
+    queryKey: ['invoices', id],
+    queryFn: () => apiClient.get<InvoiceDetail>(`/invoices/${id}`),
+    enabled: !!id,
+  });
+}
+
 export function useInvoices(projectId: string) {
   return useQuery({
     queryKey: ['projects', projectId, 'invoices'],

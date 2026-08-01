@@ -7,7 +7,7 @@ jest.mock('@/server/invoices/invoices.service', () => ({
     findAllForProject: jest.fn(),
     findAllForUser: jest.fn(),
     findOne: jest.fn(),
-    getPdfData: jest.fn(),
+    getDetail: jest.fn(),
     update: jest.fn(),
     send: jest.fn(),
     remove: jest.fn(),
@@ -33,7 +33,7 @@ describe('GET /api/invoices/[id]/pdf', () => {
 
   it('returns a PDF response wired to the invoice PDF data', async () => {
     mockRequireUser.mockResolvedValue({ userId: 'user_1' });
-    mockInvoicesService.getPdfData.mockResolvedValue({
+    mockInvoicesService.getDetail.mockResolvedValue({
       invoice: { id: 'invoice_1', invoiceNumber: 'INV-2026-0001' } as never,
       project: { id: 'project_1' } as never,
       client: null,
@@ -46,7 +46,7 @@ describe('GET /api/invoices/[id]/pdf', () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get('Content-Type')).toBe('application/pdf');
-    expect(mockInvoicesService.getPdfData).toHaveBeenCalledWith('user_1', 'invoice_1');
+    expect(mockInvoicesService.getDetail).toHaveBeenCalledWith('user_1', 'invoice_1');
     expect(mockPdfService.renderInvoice).toHaveBeenCalled();
   });
 
@@ -60,6 +60,6 @@ describe('GET /api/invoices/[id]/pdf', () => {
 
     expect(res.status).toBe(401);
     expect(json.error.statusCode).toBe(401);
-    expect(mockInvoicesService.getPdfData).not.toHaveBeenCalled();
+    expect(mockInvoicesService.getDetail).not.toHaveBeenCalled();
   });
 });

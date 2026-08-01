@@ -10,7 +10,7 @@ jest.mock('@/server/invoices/invoices.service', () => ({
     update: jest.fn(),
     send: jest.fn(),
     remove: jest.fn(),
-    getPdfData: jest.fn(),
+    getDetail: jest.fn(),
   },
 }));
 
