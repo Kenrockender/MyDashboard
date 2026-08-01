@@ -20,6 +20,30 @@ const SERIES = [
 
 const TICK = { fill: 'var(--ink-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' };
 
+const LOCALE: Record<Currency, string> = { USD: 'en-US', IDR: 'id-ID' };
+
+/** Full `moneyRounded` figures (e.g. "Rp15.000.000") don't fit in the axis's
+ *  fixed width, especially for IDR — compact notation keeps ticks short
+ *  ("Rp15Jt") while the tooltip keeps full precision on hover. */
+const COMPACT_MONEY: Record<Currency, Intl.NumberFormat> = {
+  USD: new Intl.NumberFormat(LOCALE.USD, {
+    style: 'currency',
+    currency: 'USD',
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }),
+  IDR: new Intl.NumberFormat(LOCALE.IDR, {
+    style: 'currency',
+    currency: 'IDR',
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }),
+};
+
+function compactMoney(value: number, currency: Currency) {
+  return COMPACT_MONEY[currency].format(value);
+}
+
 /** A single currency's trend — the amounts in `data` must all be in `currency`. */
 export function TrendChart({
   data,
@@ -55,7 +79,9 @@ export function TrendChart({
       </div>
       <div className="h-64 sm:h-72">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: -8 }}>
+          {/* No negative left margin: it pulls the Y axis outside the plot area
+              and clips the start of each label ("Rp 160 jt" losing its "R"). */}
+          <LineChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
             <CartesianGrid stroke="var(--hair)" vertical={false} />
             <XAxis
               dataKey="month"
@@ -67,8 +93,11 @@ export function TrendChart({
               tick={TICK}
               tickLine={false}
               axisLine={false}
-              width={64}
-              tickFormatter={(value: number) => moneyRounded(value, currency)}
+              // IDR labels ("Rp 160 jt") run several characters longer than
+              // USD's ("$13.5K"), so the gutter is sized per currency rather
+              // than padding every chart out to the widest case.
+              width={currency === 'IDR' ? 78 : 58}
+              tickFormatter={(value: number) => compactMoney(value, currency)}
             />
             <Tooltip
               formatter={(value, name) => [moneyRounded(Number(value), currency), name]}

@@ -26,6 +26,21 @@ const MONEY_ROUND: Record<Currency, Intl.NumberFormat> = {
   IDR: MONEY.IDR,
 };
 
+const MONEY_COMPACT: Record<Currency, Intl.NumberFormat> = {
+  USD: new Intl.NumberFormat(LOCALE.USD, {
+    style: 'currency',
+    currency: 'USD',
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }),
+  IDR: new Intl.NumberFormat(LOCALE.IDR, {
+    style: 'currency',
+    currency: 'IDR',
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }),
+};
+
 /** Line-item figures keep their cents (except IDR, which has none). */
 export function money(amount: number, currency: Currency = 'USD') {
   return MONEY[currency].format(amount);
@@ -34,6 +49,15 @@ export function money(amount: number, currency: Currency = 'USD') {
 /** Headline figures on stat tiles drop the cents, as in the Refined elevation. */
 export function moneyRounded(amount: number, currency: Currency = 'USD') {
   return MONEY_ROUND[currency].format(amount);
+}
+
+/**
+ * Abbreviated form ("Rp 154 jt", "$13.8K") for places too narrow to fit the
+ * full figure — chart axes, and headline tiles on small screens, where an IDR
+ * total would otherwise overflow its cell.
+ */
+export function moneyCompact(amount: number, currency: Currency = 'USD') {
+  return MONEY_COMPACT[currency].format(amount);
 }
 
 /**

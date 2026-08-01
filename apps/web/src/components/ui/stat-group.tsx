@@ -9,6 +9,12 @@ export type StatTone = keyof typeof TONE_TEXT;
 export interface Stat {
   label: string;
   value: string | number;
+  /**
+   * Abbreviated form shown below the `sm` breakpoint, where the full figure
+   * would overflow its cell (an IDR total is far too wide on a phone). Omit
+   * for values that always fit, like a plain count.
+   */
+  valueCompact?: string;
   caption?: string;
   tone?: StatTone;
   /** Draws the accent rule across the top of the cell — reserved for the profit figure. */
@@ -51,7 +57,7 @@ export function StatRow({ stats }: { stats: Stat[] }) {
 }
 
 function Cell({ stat, size }: { stat: Stat; size: 'lg' | 'sm' }) {
-  const { label, value, caption, tone = 'ink', ruled } = stat;
+  const { label, value, valueCompact, caption, tone = 'ink', ruled } = stat;
   // Currency strings use a non-breaking space (e.g. Indonesian "Rp "), so long
   // figures can't wrap onto a second line — shrink the type instead of letting them clip.
   const isLongValue = String(value).length > 14;
@@ -70,7 +76,14 @@ function Cell({ stat, size }: { stat: Stat; size: 'lg' | 'sm' }) {
             : 'mt-2 text-xl sm:text-2xl'
         }`}
       >
-        {value}
+        {valueCompact ? (
+          <>
+            <span className="sm:hidden">{valueCompact}</span>
+            <span className="hidden sm:inline">{value}</span>
+          </>
+        ) : (
+          value
+        )}
       </div>
       {caption && <div className="mt-1.5 text-xs text-ink-muted">{caption}</div>}
     </div>

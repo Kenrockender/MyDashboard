@@ -1,7 +1,7 @@
 import type { ProfitTotals } from '@/hooks/use-projects';
 import { StatRow } from '@/components/ui/stat-group';
 import { MeterRow } from '@/components/ui/meter-row';
-import { money, moneyRounded, type Currency } from '@/lib/ui';
+import { money, moneyCompact, moneyRounded, type Currency } from '@/lib/ui';
 
 /** One StatRow per currency present — most projects have just one, so this renders as it always did. */
 export function ProjectTotalsCard({
@@ -27,9 +27,24 @@ export function ProjectTotalsCard({
           )}
           <StatRow
             stats={[
-              { label: 'Income', value: moneyRounded(t.income, t.currency) },
-              { label: 'Expenses', value: moneyRounded(t.expenses, t.currency), tone: 'negative' },
-              { label: 'Profit', value: moneyRounded(t.profit, t.currency), tone: 'accent', ruled: true },
+              {
+                label: 'Income',
+                value: moneyRounded(t.income, t.currency),
+                valueCompact: moneyCompact(t.income, t.currency),
+              },
+              {
+                label: 'Expenses',
+                value: moneyRounded(t.expenses, t.currency),
+                valueCompact: moneyCompact(t.expenses, t.currency),
+                tone: 'negative',
+              },
+              {
+                label: 'Profit',
+                value: moneyRounded(t.profit, t.currency),
+                valueCompact: moneyCompact(t.profit, t.currency),
+                tone: 'accent',
+                ruled: true,
+              },
             ]}
           />
         </div>
