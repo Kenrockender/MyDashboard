@@ -1,5 +1,6 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { connectAuthEmulator, getAuth } from 'firebase/auth';
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { connectAuthEmulator, getAuth, type Auth } from 'firebase/auth';
+import { LOCAL_MODE } from './local-mode';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -10,8 +11,14 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-export const firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
-export const auth = getAuth(firebaseApp);
+// Local mode never signs in, so the SDK is left uninitialized rather than
+// bootstrapped with empty config (which throws on the first auth call).
+export const firebaseApp: FirebaseApp = LOCAL_MODE
+  ? ({} as FirebaseApp)
+  : getApps().length
+    ? getApp()
+    : initializeApp(firebaseConfig);
+export const auth: Auth = LOCAL_MODE ? ({} as Auth) : getAuth(firebaseApp);
 
 // Local-only escape hatch: point Auth at the Firebase Auth Emulator instead
 // of the real project, so the app is fully usable without touching
@@ -23,7 +30,11 @@ declare global {
   // eslint-disable-next-line no-var
   var _authEmulatorConnected: boolean | undefined;
 }
-if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true' && !globalThis._authEmulatorConnected) {
+if (
+  !LOCAL_MODE &&
+  process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true' &&
+  !globalThis._authEmulatorConnected
+) {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
   globalThis._authEmulatorConnected = true;
 }

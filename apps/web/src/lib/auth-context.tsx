@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut as firebaseSignOut, type User } from 'firebase/auth';
 import { auth } from './firebase';
+import { LOCAL_MODE, LOCAL_USER } from './local-mode';
 
 interface AuthContextValue {
   user: User | null;
@@ -17,10 +18,13 @@ const AuthContext = createContext<AuthContextValue>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Local mode has no sign-in at all — start already "signed in" as the fixed
+  // local identity so the dashboard renders immediately.
+  const [user, setUser] = useState<User | null>(LOCAL_MODE ? (LOCAL_USER as unknown as User) : null);
+  const [loading, setLoading] = useState(!LOCAL_MODE);
 
   useEffect(() => {
+    if (LOCAL_MODE) return;
     return onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser);
       setLoading(false);
@@ -28,7 +32,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signOut: () => firebaseSignOut(auth) }}>
+    <AuthContext.Provider
+      value={{ user, loading, signOut: LOCAL_MODE ? async () => {} : () => firebaseSignOut(auth) }}
+    >
       {children}
     </AuthContext.Provider>
   );
