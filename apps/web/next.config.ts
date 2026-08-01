@@ -24,27 +24,20 @@ const API_SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  // @react-pdf/renderer (and its whole dependency chain) ships ESM-only —
-  // this makes both Next's own build and next/jest's Jest transform (which
-  // derives its transformIgnorePatterns from this list) transpile them
-  // instead of erroring on bare `import` in node_modules.
-  transpilePackages: [
-    "@react-pdf/renderer",
-    "@react-pdf/primitives",
-    "@react-pdf/pdfkit",
-    "@react-pdf/fns",
-    "@react-pdf/font",
-    "@react-pdf/image",
-    "@react-pdf/layout",
-    "@react-pdf/reconciler",
-    "@react-pdf/render",
-    "@react-pdf/stylesheet",
-    "@react-pdf/svg",
-    "@react-pdf/textkit",
-    "yoga-layout",
-    "color-string",
-    "color-name",
-  ],
+  /**
+   * @react-pdf/renderer must be external, NOT transpiled into the server
+   * bundle. Bundling it puts its reconciler in the React Server Components
+   * graph, where `react` resolves to the `react-server` build — which has no
+   * client dispatcher internals, so the reconciler crashes with
+   * "Cannot read properties of undefined (reading 'S')" on every render.
+   * Leaving it external means Node resolves it normally at runtime and it
+   * gets the full React build.
+   *
+   * These packages are ESM-only, so Jest needs them transformed too — that's
+   * configured directly via `transformIgnorePatterns` in jest.config.ts
+   * rather than being derived from a `transpilePackages` list here.
+   */
+  serverExternalPackages: ["@react-pdf/renderer"],
   async headers() {
     return [
       {
