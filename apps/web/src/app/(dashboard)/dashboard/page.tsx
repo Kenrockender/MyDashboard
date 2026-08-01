@@ -8,34 +8,8 @@ import { PageHeader } from '@/components/ui/page-header';
 import { StatGroup, type Stat } from '@/components/ui/stat-group';
 import { Skeleton, StatGroupSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
-import { groupByCurrency, moneyRounded, percent, type Currency } from '@/lib/ui';
-
-/** Pill switcher for picking which currency's totals to show, used when the ledger holds more than one. */
-function CurrencyToggle({
-  currencies,
-  selected,
-  onSelect,
-}: {
-  currencies: Currency[];
-  selected: Currency;
-  onSelect: (currency: Currency) => void;
-}) {
-  return (
-    <div className="inline-flex rounded-full border border-border bg-paper-raised p-0.5">
-      {currencies.map((currency) => (
-        <button
-          key={currency}
-          onClick={() => onSelect(currency)}
-          className={`rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors ${
-            currency === selected ? 'bg-accent text-accent-ink' : 'text-ink-muted hover:text-ink'
-          }`}
-        >
-          {currency}
-        </button>
-      ))}
-    </div>
-  );
-}
+import { CurrencyToggle } from '@/components/ui/currency-toggle';
+import { groupByCurrency, moneyCompact, moneyRounded, percent, type Currency } from '@/lib/ui';
 
 const AS_OF = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' });
 
@@ -123,15 +97,21 @@ function DashboardBody({
       <div className="space-y-4">
         {shownGroups.map((t, i) => {
           const stats: Stat[] = [
-            { label: 'Total Revenue', value: moneyRounded(t.income, t.currency) },
+            {
+              label: 'Total Revenue',
+              value: moneyRounded(t.income, t.currency),
+              valueCompact: moneyCompact(t.income, t.currency),
+            },
             {
               label: 'Total Expenses',
               value: moneyRounded(t.expenses, t.currency),
+              valueCompact: moneyCompact(t.expenses, t.currency),
               caption: t.income > 0 ? `${percent(t.expenses / t.income)} of revenue` : undefined,
             },
             {
               label: 'Net Profit',
               value: moneyRounded(t.profit, t.currency),
+              valueCompact: moneyCompact(t.profit, t.currency),
               tone: 'accent',
               ruled: true,
               caption: t.income > 0 ? `${percent(t.profit / t.income)} margin` : undefined,

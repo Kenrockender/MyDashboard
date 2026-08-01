@@ -12,6 +12,8 @@ import { TrendChart } from '@/components/dashboard/trend-chart';
 import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { SectionHeading } from '@/components/ui/section-heading';
+import { Select } from '@/components/ui/select';
+import { CurrencyToggle } from '@/components/ui/currency-toggle';
 import { StatRow } from '@/components/ui/stat-group';
 import { MeterRow } from '@/components/ui/meter-row';
 import { LinkButton } from '@/components/ui/button';
@@ -22,9 +24,9 @@ import { apiClient } from '@/lib/api-client';
 import {
   downloadBlob,
   formatCategory,
-  groupByCurrency,
   inputClass,
   money,
+  moneyCompact,
   moneyRounded,
   percent,
   type Currency,
@@ -64,12 +66,17 @@ function DownloadReportPdf({ path, filename }: { path: string; filename: string 
   );
 }
 
+// One currency at a time (see the toggle in the header), so the table never
+// needs a currency column.
 const COLUMNS_5 = 'grid grid-cols-[2.2fr_1fr_1fr_1fr_0.9fr] gap-3 px-5';
-const COLUMNS_6 = 'grid grid-cols-[1.8fr_0.7fr_1fr_1fr_1fr_0.9fr] gap-3 px-5';
+
+const CURRENT_YEAR = new Date().getFullYear();
+const TAX_YEARS = Array.from({ length: 7 }, (_, i) => CURRENT_YEAR - i);
 
 export default function ReportsPage() {
   const [month, setMonth] = useState(currentMonth());
   const [taxYear, setTaxYear] = useState(new Date().getFullYear());
+  const [selectedCurrency, setSelectedCurrency] = useState<Currency>('USD');
   const monthlyQuery = useMonthlyReport(month);
   const trendQuery = useTrendReport();
   const taxQuery = usePphUmkmEstimate(taxYear);
@@ -84,20 +91,44 @@ export default function ReportsPage() {
   const { data: expenses } = expenseQuery;
   const { data: revenue } = revenueQuery;
 
-  const showProfitabilityCurrency = new Set(profitability?.map((p) => p.currency)).size > 1;
-  const columns = showProfitabilityCurrency ? COLUMNS_6 : COLUMNS_5;
-
-  const breakdownCurrencies = [
-    ...new Set([...(expenses ?? []).map((e) => e.currency), ...(revenue ?? []).map((r) => r.currency)]),
+  // Every section used to stack one block per currency, which made the page
+  // enormous once a second currency appeared. Now a single toggle picks the
+  // currency and every section below follows it — same data, one column of it.
+  const availableCurrencies = [
+    ...new Set([
+      ...(monthly ?? []).map((m) => m.currency),
+      ...(profitability ?? []).map((p) => p.currency),
+      ...(expenses ?? []).map((e) => e.currency),
+      ...(revenue ?? []).map((r) => r.currency),
+      ...(trend ?? []).map((t) => t.currency),
+    ]),
   ];
-  const showBreakdownCurrency = breakdownCurrencies.length > 1;
-  const breakdownRows: Currency[] = breakdownCurrencies.length > 0 ? breakdownCurrencies : ['USD'];
+  const currencies: Currency[] = availableCurrencies.length > 0 ? availableCurrencies : ['USD'];
+  const activeCurrency = currencies.includes(selectedCurrency) ? selectedCurrency : currencies[0];
+
+  const columns = COLUMNS_5;
+  const monthlyForCurrency = (monthly ?? []).filter((m) => m.currency === activeCurrency);
+  const profitabilityForCurrency = (profitability ?? []).filter((p) => p.currency === activeCurrency);
+  const trendForCurrency = (trend ?? []).filter((t) => t.currency === activeCurrency);
+  const categoryEntries = (expenses ?? []).filter((e) => e.currency === activeCurrency);
+  const clientEntries = (revenue ?? []).filter((r) => r.currency === activeCurrency);
+  const expenseTotal = categoryEntries.reduce((sum, e) => sum + e.total, 0);
+  const revenueTotal = clientEntries.reduce((sum, r) => sum + r.total, 0);
 
   return (
     <div className="space-y-8">
       <PageHeader
         title="Reports"
         subtitle="Four cuts of the same ledger — by month, project, category, and client."
+        aside={
+          currencies.length > 1 ? (
+            <CurrencyToggle
+              currencies={currencies}
+              selected={activeCurrency}
+              onSelect={setSelectedCurrency}
+            />
+          ) : undefined
+        }
       />
 
       <Card>
@@ -131,31 +162,34 @@ export default function ReportsPage() {
             <div className="mb-3 font-display text-lg italic text-ink-muted">
               {monthLabel(month)}
             </div>
-            <div className="space-y-3">
-              {(monthly.length > 0 ? monthly : [{ month, currency: 'USD' as const, revenue: 0, expenses: 0, profit: 0 }]).map(
-                (m) => (
-                  <div key={m.currency}>
-                    {monthly.length > 1 && (
-                      <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
-                        {m.currency}
-                      </div>
-                    )}
-                    <StatRow
-                      stats={[
-                        { label: 'Revenue', value: moneyRounded(m.revenue, m.currency) },
-                        { label: 'Expenses', value: moneyRounded(m.expenses, m.currency), tone: 'negative' },
-                        {
-                          label: 'Profit',
-                          value: moneyRounded(m.profit, m.currency),
-                          tone: 'accent',
-                          ruled: true,
-                        },
-                      ]}
-                    />
-                  </div>
-                ),
-              )}
-            </div>
+            {(monthlyForCurrency.length > 0
+              ? monthlyForCurrency
+              : [{ month, currency: activeCurrency, revenue: 0, expenses: 0, profit: 0 }]
+            ).map((m) => (
+              <StatRow
+                key={m.currency}
+                stats={[
+                  {
+                    label: 'Revenue',
+                    value: moneyRounded(m.revenue, m.currency),
+                    valueCompact: moneyCompact(m.revenue, m.currency),
+                  },
+                  {
+                    label: 'Expenses',
+                    value: moneyRounded(m.expenses, m.currency),
+                    valueCompact: moneyCompact(m.expenses, m.currency),
+                    tone: 'negative',
+                  },
+                  {
+                    label: 'Profit',
+                    value: moneyRounded(m.profit, m.currency),
+                    valueCompact: moneyCompact(m.profit, m.currency),
+                    tone: 'accent',
+                    ruled: true,
+                  },
+                ]}
+              />
+            ))}
           </>
         )}
       </Card>
@@ -170,29 +204,19 @@ export default function ReportsPage() {
         {trendQuery.isError && (
           <ErrorState message="Couldn't load the monthly trend." onRetry={trendQuery.refetch} />
         )}
-        {trend && (
-          <div className="space-y-6">
-            {groupByCurrency(trend, (t) => t.currency).length > 0 ? (
-              groupByCurrency(trend, (t) => t.currency).map(({ currency, items }) => (
-                <TrendChart key={currency} data={items} currency={currency} />
-              ))
-            ) : (
-              <TrendChart data={[]} currency="USD" />
-            )}
-          </div>
-        )}
+        {trend && <TrendChart data={trendForCurrency} currency={activeCurrency} />}
       </section>
 
       <Card>
         <SectionHeading
           className="mb-4"
           aside={
-            <input
-              type="number"
+            <Select
+              value={String(taxYear)}
+              onChange={(v) => setTaxYear(Number(v))}
               aria-label="Tax year"
-              value={taxYear}
-              onChange={(e) => setTaxYear(Number(e.target.value) || taxYear)}
-              className={`${inputClass} w-24`}
+              options={TAX_YEARS.map((y) => ({ value: String(y), label: String(y) }))}
+              className="w-28"
             />
           }
         >
@@ -251,11 +275,6 @@ export default function ReportsPage() {
                   <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-muted">
                     Project
                   </span>
-                  {showProfitabilityCurrency && (
-                    <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-muted">
-                      Currency
-                    </span>
-                  )}
                   {['Income', 'Expenses', 'Profit', 'Margin'].map((h) => (
                     <span
                       key={h}
@@ -265,18 +284,15 @@ export default function ReportsPage() {
                     </span>
                   ))}
                 </div>
-                {profitability.length === 0 && (
+                {profitabilityForCurrency.length === 0 && (
                   <p className="px-5 py-6 text-center text-sm text-ink-muted">No projects yet.</p>
                 )}
-                {profitability.map((p) => (
+                {profitabilityForCurrency.map((p) => (
                   <div
                     key={`${p.projectId}:${p.currency}`}
                     className={`${columns} items-center border-t border-hair py-3.5`}
                   >
                     <span className="truncate text-sm text-ink">{p.name}</span>
-                    {showProfitabilityCurrency && (
-                      <span className="font-mono text-xs text-ink-muted">{p.currency}</span>
-                    )}
                     <span className="text-right font-tabular font-mono text-sm text-ink">
                       {money(p.income, p.currency)}
                     </span>
@@ -297,73 +313,51 @@ export default function ReportsPage() {
         )}
       </section>
 
-      <div className="space-y-6">
-        {breakdownRows.map((currency) => {
-          const categoryEntries = (expenses ?? []).filter((e) => e.currency === currency);
-          const clientEntries = (revenue ?? []).filter((r) => r.currency === currency);
-          const expenseTotal = categoryEntries.reduce((sum, e) => sum + e.total, 0);
-          const revenueTotal = clientEntries.reduce((sum, r) => sum + r.total, 0);
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <Card>
+          <div className="mb-1 flex items-center justify-between gap-4">
+            <h2 className="font-display text-lg italic text-ink sm:text-xl">Expenses by category</h2>
+            <DownloadReportPdf path="/reports/expenses/pdf" filename="expense-breakdown.pdf" />
+          </div>
+          {expenseQuery.isLoading && <Skeleton className="h-48" />}
+          {expenseQuery.isError && (
+            <ErrorState message="Couldn't load expense breakdown." onRetry={expenseQuery.refetch} />
+          )}
+          {expenses && categoryEntries.length === 0 && (
+            <p className="text-sm text-ink-muted">No expenses yet.</p>
+          )}
+          {categoryEntries.map((e) => (
+            <MeterRow
+              key={e.category}
+              label={formatCategory(e.category)}
+              value={money(e.total, e.currency)}
+              share={expenseTotal > 0 ? e.total / expenseTotal : 0}
+              tone="negative"
+            />
+          ))}
+        </Card>
 
-          return (
-            <div key={currency}>
-              {showBreakdownCurrency && (
-                <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
-                  {currency}
-                </div>
-              )}
-              <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-                <Card>
-                  <div className="mb-1 flex items-center justify-between gap-4">
-                    <h2 className="font-display text-lg italic text-ink sm:text-xl">
-                      Expenses by category
-                    </h2>
-                    <DownloadReportPdf path="/reports/expenses/pdf" filename="expense-breakdown.pdf" />
-                  </div>
-                  {expenseQuery.isLoading && <Skeleton className="h-48" />}
-                  {expenseQuery.isError && (
-                    <ErrorState message="Couldn't load expense breakdown." onRetry={expenseQuery.refetch} />
-                  )}
-                  {expenses && categoryEntries.length === 0 && (
-                    <p className="text-sm text-ink-muted">No expenses yet.</p>
-                  )}
-                  {categoryEntries.map((e) => (
-                    <MeterRow
-                      key={e.category}
-                      label={formatCategory(e.category)}
-                      value={money(e.total, e.currency)}
-                      share={expenseTotal > 0 ? e.total / expenseTotal : 0}
-                      tone="negative"
-                    />
-                  ))}
-                </Card>
-
-                <Card>
-                  <div className="mb-1 flex items-center justify-between gap-4">
-                    <h2 className="font-display text-lg italic text-ink sm:text-xl">
-                      Revenue by client
-                    </h2>
-                    <DownloadReportPdf path="/reports/revenue/pdf" filename="revenue-by-client.pdf" />
-                  </div>
-                  {revenueQuery.isLoading && <Skeleton className="h-48" />}
-                  {revenueQuery.isError && (
-                    <ErrorState message="Couldn't load revenue by client." onRetry={revenueQuery.refetch} />
-                  )}
-                  {revenue && clientEntries.length === 0 && (
-                    <p className="text-sm text-ink-muted">No revenue yet.</p>
-                  )}
-                  {clientEntries.map((r) => (
-                    <MeterRow
-                      key={r.clientId ?? 'none'}
-                      label={r.clientName}
-                      value={money(r.total, r.currency)}
-                      share={revenueTotal > 0 ? r.total / revenueTotal : 0}
-                    />
-                  ))}
-                </Card>
-              </div>
-            </div>
-          );
-        })}
+        <Card>
+          <div className="mb-1 flex items-center justify-between gap-4">
+            <h2 className="font-display text-lg italic text-ink sm:text-xl">Revenue by client</h2>
+            <DownloadReportPdf path="/reports/revenue/pdf" filename="revenue-by-client.pdf" />
+          </div>
+          {revenueQuery.isLoading && <Skeleton className="h-48" />}
+          {revenueQuery.isError && (
+            <ErrorState message="Couldn't load revenue by client." onRetry={revenueQuery.refetch} />
+          )}
+          {revenue && clientEntries.length === 0 && (
+            <p className="text-sm text-ink-muted">No revenue yet.</p>
+          )}
+          {clientEntries.map((r) => (
+            <MeterRow
+              key={r.clientId ?? 'none'}
+              label={r.clientName}
+              value={money(r.total, r.currency)}
+              share={revenueTotal > 0 ? r.total / revenueTotal : 0}
+            />
+          ))}
+        </Card>
       </div>
     </div>
   );
