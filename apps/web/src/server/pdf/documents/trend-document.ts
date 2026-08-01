@@ -1,24 +1,39 @@
 import { createElement } from 'react';
 import { Document, Page, Text, View, StyleSheet, Svg, Rect, Line } from '@react-pdf/renderer';
 import type { ReactElement } from 'react';
+import { COLORS as THEME, pdfStyles, toDateString } from '../theme';
 import type { Currency } from '../../common/currencies';
 import type { MonthlyTrendEntry } from '../../dashboard/calculate-monthly-trend';
 
 const styles = StyleSheet.create({
-  page: { padding: 40, fontSize: 11, fontFamily: 'Helvetica', color: '#1a1a1a' },
-  title: { fontSize: 18, fontWeight: 700, marginBottom: 4 },
-  subtitle: { fontSize: 10, color: '#666', marginBottom: 20 },
-  currencyHeading: { fontSize: 11, fontWeight: 700, marginTop: 20, marginBottom: 8 },
-  legendRow: { flexDirection: 'row', marginBottom: 8 },
+  currencyHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 22,
+    marginBottom: 10,
+  },
+  currencyBadge: {
+    fontSize: 7.5,
+    fontFamily: 'Helvetica-Bold',
+    color: THEME.accent,
+    backgroundColor: THEME.accentSoft,
+    paddingVertical: 3,
+    paddingHorizontal: 7,
+    borderRadius: 3,
+    letterSpacing: 1,
+  },
+  currencyRule: { flex: 1, height: 1, backgroundColor: THEME.border },
+  legendRow: { flexDirection: 'row', marginBottom: 10 },
   legendItem: { flexDirection: 'row', alignItems: 'center', marginRight: 16 },
-  legendSwatch: { width: 8, height: 8, marginRight: 4 },
-  legendLabel: { fontSize: 9, color: '#444' },
+  legendSwatch: { width: 8, height: 8, borderRadius: 2, marginRight: 5 },
+  legendLabel: { fontSize: 8.5, color: THEME.inkMuted },
+  empty: { fontSize: 9.5, color: THEME.inkMuted, marginTop: 24 },
 });
 
-// Matches the light-theme values in apps/web/src/app/globals.css — a PDF page
-// is always printed on a light background, so this deliberately doesn't
-// follow the app's dark-mode palette.
-const COLORS = { revenue: '#1a1a1a', expenses: '#af3f28', profit: '#1f6f4f' };
+// A PDF page is always printed on a light background, so this deliberately
+// tracks the app's light-theme palette rather than its dark-mode one.
+const COLORS = { revenue: THEME.ink, expenses: THEME.negative, profit: THEME.accent };
 
 /** Buckets rows by currency, preserving first-seen order — mirrors
  *  apps/web/src/lib/ui.ts#groupByCurrency. Each currency gets its own chart;
@@ -81,7 +96,7 @@ function buildChart(entries: MonthlyTrendEntry[]): ReactElement {
         x: PLOT_LEFT + i * groupWidth + groupWidth / 2,
         y: PLOT_BOTTOM + 12,
         textAnchor: 'middle' as const,
-        style: { fontSize: 7, fill: '#666' } as any,
+        style: { fontSize: 7, fill: THEME.inkMuted } as any,
       },
       // "2026-06" -> "26-06", compact enough for the axis at this chart width.
       entry.month.slice(2),
@@ -96,7 +111,7 @@ function buildChart(entries: MonthlyTrendEntry[]): ReactElement {
       y1: PLOT_BOTTOM,
       x2: CHART_WIDTH - PLOT_LEFT,
       y2: PLOT_BOTTOM,
-      stroke: '#ddd',
+      stroke: THEME.border,
       strokeWidth: 1,
     }),
     ...bars,
@@ -138,27 +153,58 @@ export function buildTrendDocument({
 
   return createElement(
     Document,
-    {},
+    { title: 'Monthly Trend', author: 'Ledger' },
     createElement(
       Page,
-      { size: 'A4', style: styles.page },
-      createElement(Text, { style: styles.title }, 'Monthly Trend'),
+      { size: 'A4', style: pdfStyles.page },
+
       createElement(
-        Text,
-        { style: styles.subtitle },
-        `Generated ${generatedAt.toISOString().slice(0, 10)}`,
+        View,
+        { style: pdfStyles.masthead },
+        createElement(
+          View,
+          {},
+          createElement(Text, { style: pdfStyles.brand }, 'Ledger'),
+          createElement(Text, { style: pdfStyles.brandTag }, 'PROJECT FINANCE'),
+        ),
+        createElement(
+          View,
+          {},
+          createElement(Text, { style: pdfStyles.docTitle }, 'Monthly Trend'),
+          createElement(
+            Text,
+            { style: pdfStyles.docMeta },
+            `Generated ${toDateString(generatedAt)}`,
+          ),
+        ),
       ),
+
       groups.length === 0
-        ? createElement(Text, {}, 'No data for this report.')
+        ? createElement(Text, { style: styles.empty }, 'No data for this report.')
         : groups.map((group) =>
             createElement(
               View,
               { key: group.currency },
-              createElement(Text, { style: styles.currencyHeading }, group.currency),
+              createElement(
+                View,
+                { style: styles.currencyHeading },
+                createElement(Text, { style: styles.currencyBadge }, group.currency),
+                createElement(View, { style: styles.currencyRule }),
+              ),
               buildLegend(),
               buildChart(group.rows),
             ),
           ),
+
+      createElement(
+        View,
+        { style: pdfStyles.footer, fixed: true },
+        createElement(Text, {}, 'Ledger · Monthly Trend'),
+        createElement(Text, {
+          render: ({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
+            `Page ${pageNumber} of ${totalPages}`,
+        }),
+      ),
     ),
   );
 }

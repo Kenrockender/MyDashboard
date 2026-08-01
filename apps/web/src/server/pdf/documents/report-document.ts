@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import type { ReactElement } from 'react';
 import { formatMoney } from '../format-money';
+import { COLORS, pdfStyles, toDateString } from '../theme';
 import type { Currency } from '../../common/currencies';
 
 export type ReportType = 'monthly' | 'profitability' | 'expenses' | 'revenue';
@@ -43,25 +44,27 @@ const TITLES: Record<ReportType, string> = {
 };
 
 const styles = StyleSheet.create({
-  page: { padding: 40, fontSize: 11, fontFamily: 'Helvetica', color: '#1a1a1a' },
-  title: { fontSize: 18, fontWeight: 700, marginBottom: 4 },
-  subtitle: { fontSize: 10, color: '#666', marginBottom: 20 },
-  currencyHeading: { fontSize: 11, fontWeight: 700, marginTop: 16, marginBottom: 6 },
-  rowHeader: {
+  currencyHeading: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
-    paddingVertical: 6,
-    fontWeight: 700,
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 22,
+    marginBottom: 8,
   },
-  row: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-    paddingVertical: 6,
+  currencyBadge: {
+    fontSize: 7.5,
+    fontFamily: 'Helvetica-Bold',
+    color: COLORS.accent,
+    backgroundColor: COLORS.accentSoft,
+    paddingVertical: 3,
+    paddingHorizontal: 7,
+    borderRadius: 3,
+    letterSpacing: 1,
   },
-  cell: { flex: 2 },
+  currencyRule: { flex: 1, height: 1, backgroundColor: COLORS.border },
+  cell: { flex: 2.2 },
   cellNum: { flex: 1, textAlign: 'right' },
+  empty: { fontSize: 9.5, color: COLORS.inkMuted, marginTop: 24 },
 });
 
 /** Buckets rows by currency, preserving first-seen order — mirrors
@@ -146,42 +149,89 @@ export function buildReportDocument({
 
   return createElement(
     Document,
-    {},
+    { title: TITLES[type], author: 'Ledger' },
     createElement(
       Page,
-      { size: 'A4', style: styles.page },
-      createElement(Text, { style: styles.title }, TITLES[type]),
+      { size: 'A4', style: pdfStyles.page },
+
       createElement(
-        Text,
-        { style: styles.subtitle },
-        `Generated ${generatedAt.toISOString().slice(0, 10)}${contextLabel ? ` · ${contextLabel}` : ''}`,
+        View,
+        { style: pdfStyles.masthead },
+        createElement(
+          View,
+          {},
+          createElement(Text, { style: pdfStyles.brand }, 'Ledger'),
+          createElement(Text, { style: pdfStyles.brandTag }, 'PROJECT FINANCE'),
+        ),
+        createElement(
+          View,
+          {},
+          createElement(Text, { style: pdfStyles.docTitle }, TITLES[type]),
+          createElement(
+            Text,
+            { style: pdfStyles.docMeta },
+            `Generated ${toDateString(generatedAt)}${contextLabel ? ` · ${contextLabel}` : ''}`,
+          ),
+        ),
       ),
+
       groups.length === 0
-        ? createElement(Text, {}, 'No data for this report.')
+        ? createElement(Text, { style: styles.empty }, 'No data for this report.')
         : groups.map((group) => {
             const { headers, cells } = tableFor(type, group.rows);
             return createElement(
               View,
               { key: group.currency },
-              createElement(Text, { style: styles.currencyHeading }, group.currency),
+              // Each currency gets its own table — figures in different
+              // currencies are never summed together anywhere in this app.
               createElement(
                 View,
-                { style: styles.rowHeader },
+                { style: styles.currencyHeading },
+                createElement(Text, { style: styles.currencyBadge }, group.currency),
+                createElement(View, { style: styles.currencyRule }),
+              ),
+              createElement(
+                View,
+                { style: pdfStyles.tableHead },
                 ...headers.map((h, i) =>
-                  createElement(Text, { key: i, style: i === 0 ? styles.cell : styles.cellNum }, h),
+                  createElement(
+                    Text,
+                    { key: i, style: [pdfStyles.th, i === 0 ? styles.cell : styles.cellNum] },
+                    h,
+                  ),
                 ),
               ),
               ...cells.map((cellRow, ri) =>
                 createElement(
                   View,
-                  { key: ri, style: styles.row },
+                  { key: ri, style: pdfStyles.tr },
                   ...cellRow.map((c, ci) =>
-                    createElement(Text, { key: ci, style: ci === 0 ? styles.cell : styles.cellNum }, c),
+                    createElement(
+                      Text,
+                      {
+                        key: ci,
+                        style: [
+                          ci === 0 ? pdfStyles.td : pdfStyles.td,
+                          ci === 0 ? styles.cell : styles.cellNum,
+                        ],
+                      },
+                      c,
+                    ),
                   ),
                 ),
               ),
             );
           }),
+
+      createElement(
+        View,
+        { style: pdfStyles.footer, fixed: true },
+        createElement(Text, {}, `Ledger · ${TITLES[type]}`),
+        createElement(Text, {
+          render: ({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
+            `Page ${pageNumber} of ${totalPages}`,
+        }),
+      ),
     ),
   );
 }
