@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { useReportsSummary } from '@/hooks/use-reports';
 import { TrendChart } from '@/components/dashboard/trend-chart';
 import { Card } from '@/components/ui/card';
@@ -14,6 +15,7 @@ import { Skeleton, ListSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/lib/toast-context';
 import { apiClient } from '@/lib/api-client';
+import { localMonthIso } from '@/lib/local-date';
 import {
   downloadBlob,
   formatCategory,
@@ -26,7 +28,7 @@ import {
 } from '@/lib/ui';
 
 function currentMonth() {
-  return new Date().toISOString().slice(0, 7);
+  return localMonthIso();
 }
 
 function monthLabel(month: string) {
@@ -85,6 +87,7 @@ export default function ReportsPage() {
   const taxYears = summary?.taxEstimates.map((e) => e.year) ?? [taxYear];
   const taxEstimate =
     summary?.taxEstimates.find((e) => e.year === taxYear) ?? summary?.taxEstimates[0];
+  const incomeType = summary?.incomeType;
 
   // Every section used to stack one block per currency, which made the page
   // enormous once a second currency appeared. Now a single toggle picks the
@@ -210,21 +213,52 @@ export default function ReportsPage() {
         <SectionHeading
           className="mb-4"
           aside={
-            <Select
-              value={String(taxYear)}
-              onChange={(v) => setTaxYear(Number(v))}
-              aria-label="Tax year"
-              options={taxYears.map((y) => ({ value: String(y), label: String(y) }))}
-              className="w-28"
-            />
+            incomeType !== 'professional' && taxEstimate ? (
+              <Select
+                value={String(taxYear)}
+                onChange={(v) => setTaxYear(Number(v))}
+                aria-label="Tax year"
+                options={taxYears.map((y) => ({ value: String(y), label: String(y) }))}
+                className="w-28"
+              />
+            ) : undefined
           }
         >
           Estimasi Pajak — PPh Final UMKM
         </SectionHeading>
 
         {isLoading && <Skeleton className="h-24 rounded-xl" />}
-        {taxEstimate && (
+
+        {/* Professional services (pekerjaan bebas): no 0.5% figure — this
+            income is taxed at progressive rates under PPh Pasal 17, which the
+            app does not compute. */}
+        {!isLoading && incomeType === 'professional' && (
+          <p className="rounded-lg border border-border bg-paper px-4 py-3 text-sm leading-relaxed text-ink-muted">
+            <strong className="text-ink">Tidak dihitung di sini.</strong> Income dari pekerjaan
+            bebas (jasa profesional independen, termasuk content creator sejak PP 20/2026) tidak
+            kena tarif final UMKM 0,5%. Penghasilan ini dikenakan tarif progresif PPh Pasal 17
+            dan tidak dihitung oleh aplikasi ini. Konsultasikan ke akuntan/konsultan pajak.{' '}
+            <Link href="/settings" className="text-accent underline underline-offset-4">
+              Ubah jenis income
+            </Link>
+          </p>
+        )}
+
+        {/* Business income, or not-yet-answered. Both show today's figure; the
+            unanswered state labels it as business-only and links to the
+            question so the user can confirm which regime applies to them. */}
+        {!isLoading && incomeType !== 'professional' && taxEstimate && (
           <>
+            {incomeType === undefined && (
+              <p className="mb-4 rounded-lg border border-accent/40 bg-accent-soft px-4 py-3 text-xs leading-relaxed text-ink">
+                <strong>Estimasi untuk income usaha saja.</strong> Angka di bawah menganggap income
+                Anda dari usaha (jual barang/jasa non-profesional). Kalau income Anda dari pekerjaan
+                bebas (jasa profesional, content creator), tarif ini tidak berlaku.{' '}
+                <Link href="/settings" className="text-accent underline underline-offset-4">
+                  Jawab: bagaimana income Anda dikenakan pajak?
+                </Link>
+              </p>
+            )}
             <StatRow
               stats={[
                 { label: 'Omzet (IDR)', value: money(taxEstimate.grossRevenueIdr, 'IDR') },

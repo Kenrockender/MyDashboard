@@ -9,6 +9,7 @@ import type { Income } from '../income/income.service';
 import type { Project } from '../projects/projects.service';
 import type { Client } from '../clients/clients.service';
 import { paginate, type Page } from '../common/paginate';
+import { wibYear } from '../common/wib-date';
 
 export interface Invoice {
   id: string;
@@ -51,7 +52,7 @@ class InvoicesService {
   private async nextInvoiceNumber(userId: string): Promise<string> {
     const snap = await this.collection.where('userId', '==', userId).get();
     const seq = snap.docs.length + 1;
-    return `INV-${new Date().getFullYear()}-${String(seq).padStart(4, '0')}`;
+    return `INV-${wibYear(new Date())}-${String(seq).padStart(4, '0')}`;
   }
 
   async create(

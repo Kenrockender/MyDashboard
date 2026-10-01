@@ -1,4 +1,5 @@
 import { StyleSheet } from '@react-pdf/renderer';
+import { wibDateKey } from '../common/wib-date';
 
 /**
  * Shared look for every generated PDF, so an invoice and a report read as the
@@ -104,7 +105,7 @@ export const pdfStyles = StyleSheet.create({
   },
 });
 
-/** `YYYY-MM-DD`, matching how dates render throughout the app. */
+/** `YYYY-MM-DD` in WIB, matching how dates render throughout the app. */
 export function toDateString(value: Date | string): string {
-  return new Date(value).toISOString().slice(0, 10);
+  return wibDateKey(value);
 }

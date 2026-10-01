@@ -13,6 +13,7 @@ import { CurrencySelect } from '@/components/ui/currency-select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/lib/toast-context';
 import { inputClass, money, type Currency } from '@/lib/ui';
+import { localDateIso } from '@/lib/local-date';
 
 /**
  * The read-only-by-default summary shown for a one-time-sale project instead
@@ -40,7 +41,7 @@ export function SaleSummary({ projectId }: { projectId: string }) {
   function startEditing() {
     setAmount(sale ? String(sale.amount) : '');
     setCurrency(sale?.currency ?? 'USD');
-    setDate((sale?.date ?? new Date().toISOString()).slice(0, 10));
+    setDate(sale?.date ? sale.date.slice(0, 10) : localDateIso());
     setCostAmount(cost ? String(cost.amount) : '');
     setEditing(true);
   }

@@ -17,6 +17,7 @@ import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/lib/toast-context';
 import { useConfirm } from '@/lib/confirm-context';
 import { inputClass, money, type Currency } from '@/lib/ui';
+import { localDateIso } from '@/lib/local-date';
 
 interface EntryFormValues {
   hours: number;
@@ -188,7 +189,7 @@ export function TimeEntryList({ projectId }: { projectId: string }) {
     setTimerRunning(false);
     const trackedHours = elapsedSeconds / 3600;
     setHours(trackedHours > 0 ? trackedHours.toFixed(2) : '');
-    setDate(new Date().toISOString().slice(0, 10));
+    setDate(localDateIso());
     timerStartRef.current = null;
     setElapsedSeconds(0);
   }

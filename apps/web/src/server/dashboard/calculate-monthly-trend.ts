@@ -1,4 +1,5 @@
 import { Currency } from '../common/currencies';
+import { wibMonthKey } from '../common/wib-date';
 
 export interface MonthlyTrendEntry {
   month: string;
@@ -14,9 +15,9 @@ interface DatedAmount {
   date: Date | string;
 }
 
+/** `YYYY-MM` of the WIB calendar date, so the 1st's early hours land in the right month. */
 export function monthKey(date: Date | string): string {
-  const d = new Date(date);
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  return wibMonthKey(date);
 }
 
 function bucketKey(month: string, currency: Currency): string {

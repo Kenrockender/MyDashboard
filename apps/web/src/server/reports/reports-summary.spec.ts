@@ -20,8 +20,9 @@ jest.mock('../firebase', () => ({
 
 import { createFakeFirestore } from '../testing/fake-firestore';
 import { reportsService } from './reports.service';
+import { wibYear } from '../common/wib-date';
 
-const THIS_YEAR = new Date().getUTCFullYear();
+const THIS_YEAR = wibYear(new Date());
 
 function seed() {
   return createFakeFirestore({
@@ -75,12 +76,15 @@ describe('ReportsService.getSummary', () => {
 
     // The regression this endpoint exists to prevent: the Reports page used to
     // call six endpoints that each re-read income and expenses for themselves,
-    // costing 14 collection reads per page load.
-    expect(collectionReads).toHaveLength(4);
+    // costing 14 collection reads per page load. The summary reads each of the
+    // four report collections once, plus the user's settings doc once (needed
+    // to know whether the PPh UMKM figure applies at all).
+    expect(collectionReads).toHaveLength(5);
     expect(collectionReads.filter((c) => c === 'income')).toHaveLength(1);
     expect(collectionReads.filter((c) => c === 'expenses')).toHaveLength(1);
     expect(collectionReads.filter((c) => c === 'projects')).toHaveLength(1);
     expect(collectionReads.filter((c) => c === 'clients')).toHaveLength(1);
+    expect(collectionReads.filter((c) => c === 'settings')).toHaveLength(1);
   });
 
   it('returns the same figures the individual report endpoints do', async () => {
@@ -125,6 +129,30 @@ describe('ReportsService.getSummary', () => {
     // excluded rather than converted.
     expect(thisYear.grossRevenueIdr).toBe(800_000_000);
     expect(thisYear.estimatedTaxIdr).toBe(1_500_000);
+  });
+
+  it('leaves incomeType undefined and still returns estimates when the question is unanswered', async () => {
+    const summary = await reportsService.getSummary('user_1');
+    expect(summary.incomeType).toBeUndefined();
+    expect(summary.taxEstimates).toHaveLength(7);
+  });
+
+  it('returns no tax estimates when the user is taxed as professional services', async () => {
+    mockDb = seed();
+    await mockDb.collection('settings').doc('user_1').set({ incomeType: 'professional' });
+
+    const summary = await reportsService.getSummary('user_1');
+    expect(summary.incomeType).toBe('professional');
+    expect(summary.taxEstimates).toEqual([]);
+  });
+
+  it('returns estimates and echoes incomeType when the user is taxed as business', async () => {
+    mockDb = seed();
+    await mockDb.collection('settings').doc('user_1').set({ incomeType: 'business' });
+
+    const summary = await reportsService.getSummary('user_1');
+    expect(summary.incomeType).toBe('business');
+    expect(summary.taxEstimates.find((e) => e.year === THIS_YEAR)!.estimatedTaxIdr).toBe(1_500_000);
   });
 
   it('scopes every section to the authenticated user', async () => {

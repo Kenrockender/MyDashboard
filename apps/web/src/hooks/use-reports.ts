@@ -48,8 +48,10 @@ export interface ReportsSummary {
   profitability: ProfitabilityEntry[];
   expenseBreakdown: ExpenseBreakdownEntry[];
   revenueBreakdown: RevenueBreakdownEntry[];
-  /** Newest year first; the tax-year dropdown is built from this. */
+  /** Newest year first; the tax-year dropdown is built from this. Empty when incomeType is 'professional'. */
   taxEstimates: PphUmkmEstimate[];
+  /** The user's answer to "how is your income taxed?", or undefined if unanswered. */
+  incomeType?: 'business' | 'professional';
 }
 
 /**

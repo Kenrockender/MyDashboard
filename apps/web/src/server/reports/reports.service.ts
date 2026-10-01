@@ -16,8 +16,11 @@ import {
 } from './calculate-reports';
 import {
   calculatePphUmkmEstimate,
+  type IncomeType,
   type PphUmkmEstimate,
 } from '../tax/calculate-pph-umkm';
+import { settingsService } from '../settings/settings.service';
+import { wibYear } from '../common/wib-date';
 import type { Client } from '../clients/clients.service';
 import type { Project } from '../projects/projects.service';
 import type { Income } from '../income/income.service';
@@ -33,7 +36,15 @@ export interface ReportsSummary {
   profitability: ProfitabilityRow[];
   expenseBreakdown: ExpenseBreakdownRow[];
   revenueBreakdown: RevenueBreakdownRow[];
+  /**
+   * PPh UMKM estimates, newest year first. EMPTY when the user's income is
+   * `professional` (pekerjaan bebas does not qualify for the 0.5% final rate),
+   * so the Reports page shows the Pasal 17 note instead of a figure. For
+   * `business` and the unanswered case these are the same numbers as before.
+   */
   taxEstimates: PphUmkmEstimate[];
+  /** The user's answer to "how is your income taxed?", or undefined if unanswered. */
+  incomeType?: IncomeType;
 }
 
 class ReportsService {
@@ -57,19 +68,27 @@ class ReportsService {
    * rather than another round trip. Four collection reads, once.
    */
   async getSummary(userId: string): Promise<ReportsSummary> {
-    const [projectSnap, clientSnap, { income, expenses }] = await Promise.all([
+    const [projectSnap, clientSnap, { income, expenses }, settings] = await Promise.all([
       db.collection(COLLECTIONS.projects).where('userId', '==', userId).get(),
       db.collection(COLLECTIONS.clients).where('userId', '==', userId).get(),
       this.getAllRecords(userId),
+      settingsService.get(userId),
     ]);
 
     const projects = projectSnap.docs.map((d) => docToEntity<Project>(d));
     const clients = clientSnap.docs.map((d) => docToEntity<Client>(d));
 
-    const currentYear = new Date().getUTCFullYear();
-    const taxEstimates = Array.from({ length: TAX_YEARS_RETURNED }, (_, i) =>
-      calculatePphUmkmEstimate(income, currentYear - i),
-    );
+    // Professional-services income (pekerjaan bebas) does not qualify for the
+    // 0.5% final rate, so there is no figure to compute — return an empty span
+    // and let the page render the Pasal 17 note. Business income and the
+    // unanswered case both produce the numeric estimate as before.
+    const currentYear = wibYear(new Date());
+    const taxEstimates =
+      settings.incomeType === 'professional'
+        ? []
+        : Array.from({ length: TAX_YEARS_RETURNED }, (_, i) =>
+            calculatePphUmkmEstimate(income, currentYear - i, settings.incomeType),
+          ).filter((e): e is PphUmkmEstimate => e !== null);
 
     return {
       trend: calculateMonthlyTrend(income, expenses),
@@ -77,6 +96,7 @@ class ReportsService {
       expenseBreakdown: calculateExpenseBreakdown(expenses),
       revenueBreakdown: calculateRevenueBreakdown(projects, clients, income),
       taxEstimates,
+      incomeType: settings.incomeType,
     };
   }
 

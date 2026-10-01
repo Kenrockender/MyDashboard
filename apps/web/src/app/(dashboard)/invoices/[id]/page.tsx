@@ -10,6 +10,7 @@ import { ErrorState } from '@/components/ui/error-state';
 import { useToast } from '@/lib/toast-context';
 import { apiClient } from '@/lib/api-client';
 import { downloadBlob, money } from '@/lib/ui';
+import { localDateIso } from '@/lib/local-date';
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -123,8 +124,8 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         </div>
         <Row label="Issued" value={invoice.issueDate.slice(0, 10)} />
         <Row label="Due" value={invoice.dueDate ? invoice.dueDate.slice(0, 10) : '—'} />
-        <Row label="Sent" value={invoice.sentAt ? invoice.sentAt.slice(0, 10) : 'Not sent yet'} />
-        <Row label="Paid" value={invoice.paidAt ? invoice.paidAt.slice(0, 10) : 'Not paid yet'} />
+        <Row label="Sent" value={invoice.sentAt ? localDateIso(new Date(invoice.sentAt)) : 'Not sent yet'} />
+        <Row label="Paid" value={invoice.paidAt ? localDateIso(new Date(invoice.paidAt)) : 'Not paid yet'} />
         {client?.email && <Row label="Client email" value={client.email} />}
         {invoice.notes && <Row label="Notes" value={invoice.notes} />}
       </Card>

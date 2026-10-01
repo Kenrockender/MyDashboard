@@ -7,6 +7,7 @@ jest.mock('@/server/tax/tax.service', () => ({
 
 import { requireUser } from '@/server/require-user';
 import { taxService } from '@/server/tax/tax.service';
+import { wibYear } from '@/server/common/wib-date';
 import { GET } from './route';
 
 const mockRequireUser = requireUser as jest.Mock;
@@ -40,7 +41,7 @@ describe('GET /api/tax/pph-umkm', () => {
     expect(res.status).toBe(200);
     expect(mockTaxService.getPphUmkmEstimate).toHaveBeenCalledWith(
       'user_1',
-      new Date().getUTCFullYear(),
+      wibYear(new Date()),
     );
   });
 

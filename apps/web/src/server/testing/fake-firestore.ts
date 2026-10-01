@@ -67,6 +67,22 @@ class FakeCollection extends FakeQuery {
     const find = () => this.store.find((d) => d.id === id);
     return {
       get: () => Promise.resolve(snapshotOf(find())),
+      set: (data: Record<string, unknown>, options?: { merge?: boolean }) => {
+        const existing = find();
+        if (existing) {
+          if (options?.merge) Object.assign(existing, data);
+          else {
+            // Replace: keep only the id, drop every other field first.
+            for (const key of Object.keys(existing)) {
+              if (key !== 'id') delete existing[key];
+            }
+            Object.assign(existing, data);
+          }
+        } else {
+          this.store.push({ id, ...data });
+        }
+        return Promise.resolve();
+      },
       update: (patch: Record<string, unknown>) => {
         const doc = find();
         if (doc) Object.assign(doc, patch);
