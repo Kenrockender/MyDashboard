@@ -144,6 +144,7 @@ export function buildReportDocument({
   rows: ReportRow[];
   generatedAt: Date;
   contextLabel?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberate: DocumentProps is not exported (see above)
 }): ReactElement<any> {
   const groups = groupByCurrency(rows);
 
