@@ -36,6 +36,14 @@ describe('calculateMonthlyTrend', () => {
     expect(calculateMonthlyTrend([], [])).toEqual([]);
   });
 
+  it('files a payment made at 00:30 WIB on 1 January under January, not the previous December', () => {
+    const result = calculateMonthlyTrend(
+      [{ amount: 700, date: '2026-12-31T17:30:00.000Z' }],
+      [],
+    );
+    expect(result.map((r) => r.month)).toEqual(['2027-01']);
+  });
+
   it('handles a month with expenses but no income', () => {
     const result = calculateMonthlyTrend(
       [],

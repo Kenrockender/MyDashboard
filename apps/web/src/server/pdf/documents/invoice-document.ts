@@ -88,6 +88,7 @@ export function buildInvoiceDocument({
   project: Project;
   client: Client | null;
   incomeLines: Income[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberate: DocumentProps is not exported (see above)
 }): ReactElement<any> {
   return createElement(
     Document,

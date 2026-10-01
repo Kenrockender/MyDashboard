@@ -126,3 +126,17 @@ export function SignOutIcon({ className = "h-5 w-5" }: { className?: string }) {
     </svg>
   );
 }
+
+export function SettingsIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M12 2.8v2.3M12 18.9v2.3M4.7 4.7l1.6 1.6M17.7 17.7l1.6 1.6M2.8 12h2.3M18.9 12h2.3M4.7 19.3l1.6-1.6M17.7 6.3l1.6-1.6"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}

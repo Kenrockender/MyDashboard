@@ -12,6 +12,7 @@ import {
   ClientsIcon,
   InvoicesIcon,
   ReportsIcon,
+  SettingsIcon,
   SignOutIcon,
 } from "@/components/shared/icons";
 
@@ -21,6 +22,7 @@ const links = [
   { href: "/clients", label: "Clients", Icon: ClientsIcon },
   { href: "/invoices", label: "Invoices", Icon: InvoicesIcon },
   { href: "/reports", label: "Reports", Icon: ReportsIcon },
+  { href: "/settings", label: "Settings", Icon: SettingsIcon },
 ];
 
 export function Nav() {

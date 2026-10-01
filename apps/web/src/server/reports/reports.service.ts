@@ -1,16 +1,51 @@
 import { db } from '../firebase';
 import { COLLECTIONS, docToEntity } from '../collections';
-import { calculateProfit } from '../common/calculate-profit';
 import {
-  monthKey,
   calculateMonthlyTrend,
   type MonthlyTrendEntry,
 } from '../dashboard/calculate-monthly-trend';
-import { Currency } from '../common/currencies';
+import {
+  calculateMonthly,
+  calculateProfitability,
+  calculateExpenseBreakdown,
+  calculateRevenueBreakdown,
+  type MonthlyReportRow,
+  type ProfitabilityRow,
+  type ExpenseBreakdownRow,
+  type RevenueBreakdownRow,
+} from './calculate-reports';
+import {
+  calculatePphUmkmEstimate,
+  type IncomeType,
+  type PphUmkmEstimate,
+} from '../tax/calculate-pph-umkm';
+import { settingsService } from '../settings/settings.service';
+import { wibYear } from '../common/wib-date';
 import type { Client } from '../clients/clients.service';
 import type { Project } from '../projects/projects.service';
 import type { Income } from '../income/income.service';
 import type { Expense } from '../expenses/expenses.service';
+
+/** How many years of tax estimates `getSummary` returns, newest first. The
+ *  Reports page builds its year dropdown from this rather than deciding for
+ *  itself, so the two can't drift apart. */
+const TAX_YEARS_RETURNED = 7;
+
+export interface ReportsSummary {
+  trend: MonthlyTrendEntry[];
+  profitability: ProfitabilityRow[];
+  expenseBreakdown: ExpenseBreakdownRow[];
+  revenueBreakdown: RevenueBreakdownRow[];
+  /**
+   * PPh UMKM estimates, newest year first. EMPTY when the user's income is
+   * `professional` (pekerjaan bebas does not qualify for the 0.5% final rate),
+   * so the Reports page shows the Pasal 17 note instead of a figure. For
+   * `business` and the unanswered case these are the same numbers as before.
+   */
+  taxEstimates: PphUmkmEstimate[];
+  /** The user's answer to "how is your income taxed?", or undefined if unanswered. */
+  incomeType?: IncomeType;
+}
 
 class ReportsService {
   private async getAllRecords(userId: string) {
@@ -24,49 +59,64 @@ class ReportsService {
     };
   }
 
-  async getMonthly(userId: string, month: string) {
-    const { income, expenses } = await this.getAllRecords(userId);
-    const monthIncome = income.filter((i) => monthKey(i.date) === month);
-    const monthExpenses = expenses.filter((e) => monthKey(e.date) === month);
-    return calculateProfit(monthIncome, monthExpenses).map((totals) => ({
-      month,
-      currency: totals.currency,
-      revenue: totals.income,
-      expenses: totals.expenses,
-      profit: totals.profit,
-    }));
+  /**
+   * Everything the Reports page renders, from one pass over the data.
+   *
+   * Deliberately takes no month or year argument: the trend already contains
+   * every month, and tax estimates are returned for a span of years, so
+   * changing the month picker or the tax-year dropdown is a local filter
+   * rather than another round trip. Four collection reads, once.
+   */
+  async getSummary(userId: string): Promise<ReportsSummary> {
+    const [projectSnap, clientSnap, { income, expenses }, settings] = await Promise.all([
+      db.collection(COLLECTIONS.projects).where('userId', '==', userId).get(),
+      db.collection(COLLECTIONS.clients).where('userId', '==', userId).get(),
+      this.getAllRecords(userId),
+      settingsService.get(userId),
+    ]);
+
+    const projects = projectSnap.docs.map((d) => docToEntity<Project>(d));
+    const clients = clientSnap.docs.map((d) => docToEntity<Client>(d));
+
+    // Professional-services income (pekerjaan bebas) does not qualify for the
+    // 0.5% final rate, so there is no figure to compute — return an empty span
+    // and let the page render the Pasal 17 note. Business income and the
+    // unanswered case both produce the numeric estimate as before.
+    const currentYear = wibYear(new Date());
+    const taxEstimates =
+      settings.incomeType === 'professional'
+        ? []
+        : Array.from({ length: TAX_YEARS_RETURNED }, (_, i) =>
+            calculatePphUmkmEstimate(income, currentYear - i, settings.incomeType),
+          ).filter((e): e is PphUmkmEstimate => e !== null);
+
+    return {
+      trend: calculateMonthlyTrend(income, expenses),
+      profitability: calculateProfitability(projects, income, expenses),
+      expenseBreakdown: calculateExpenseBreakdown(expenses),
+      revenueBreakdown: calculateRevenueBreakdown(projects, clients, income),
+      taxEstimates,
+      incomeType: settings.incomeType,
+    };
   }
 
-  async getProfitability(userId: string) {
+  // The single-report methods below back the PDF routes (and the individual
+  // JSON endpoints in 04-API-Specification.md). Each renders one document on
+  // demand, so loading records per call is fine there — it's only the Reports
+  // *page*, firing all of them at once, that made the repetition expensive.
+
+  async getMonthly(userId: string, month: string): Promise<MonthlyReportRow[]> {
+    const { income, expenses } = await this.getAllRecords(userId);
+    return calculateMonthly(income, expenses, month);
+  }
+
+  async getProfitability(userId: string): Promise<ProfitabilityRow[]> {
     const [projectSnap, { income, expenses }] = await Promise.all([
       db.collection(COLLECTIONS.projects).where('userId', '==', userId).get(),
       this.getAllRecords(userId),
     ]);
-
-    return projectSnap.docs
-      .flatMap((doc) => {
-        const project = docToEntity<Project>(doc);
-        const rawTotals = calculateProfit(
-          income.filter((i) => i.projectId === project.id),
-          expenses.filter((e) => e.projectId === project.id),
-        );
-        // A project with no income/expenses at all still gets one $0 row so it
-        // stays visible in the report, instead of disappearing entirely.
-        const totals =
-          rawTotals.length > 0
-            ? rawTotals
-            : [{ currency: 'USD' as const, income: 0, expenses: 0, profit: 0 }];
-        return totals.map((t) => ({
-          projectId: project.id,
-          name: project.name,
-          currency: t.currency,
-          income: t.income,
-          expenses: t.expenses,
-          profit: t.profit,
-          margin: t.income > 0 ? t.profit / t.income : 0,
-        }));
-      })
-      .sort((a, b) => b.profit - a.profit);
+    const projects = projectSnap.docs.map((d) => docToEntity<Project>(d));
+    return calculateProfitability(projects, income, expenses);
   }
 
   /** The full multi-month trend — unlike getMonthly, not filtered to one
@@ -78,68 +128,20 @@ class ReportsService {
     return calculateMonthlyTrend(income, expenses);
   }
 
-  async getExpenseBreakdown(userId: string) {
+  async getExpenseBreakdown(userId: string): Promise<ExpenseBreakdownRow[]> {
     const { expenses } = await this.getAllRecords(userId);
-    const groups = new Map<
-      string,
-      { category: string; currency: Currency; total: number }
-    >();
-    for (const e of expenses) {
-      const currency = e.currency ?? 'USD';
-      const key = `${e.category}:${currency}`;
-      const entry = groups.get(key) ?? {
-        category: e.category,
-        currency,
-        total: 0,
-      };
-      entry.total += Number(e.amount);
-      groups.set(key, entry);
-    }
-    return [...groups.values()].sort((a, b) => b.total - a.total);
+    return calculateExpenseBreakdown(expenses);
   }
 
-  async getRevenueBreakdown(userId: string) {
+  async getRevenueBreakdown(userId: string): Promise<RevenueBreakdownRow[]> {
     const [projectSnap, clientSnap, { income }] = await Promise.all([
       db.collection(COLLECTIONS.projects).where('userId', '==', userId).get(),
       db.collection(COLLECTIONS.clients).where('userId', '==', userId).get(),
       this.getAllRecords(userId),
     ]);
-
-    const clientNames = new Map(
-      clientSnap.docs.map((d) => [d.id, docToEntity<Client>(d).name] as const),
-    );
-
-    const groups = new Map<
-      string,
-      {
-        clientId: string | null;
-        clientName: string;
-        currency: Currency;
-        total: number;
-      }
-    >();
-    for (const doc of projectSnap.docs) {
-      const project = docToEntity<Project>(doc);
-      const clientKey = project.clientId ?? 'none';
-      const clientName = project.clientId
-        ? (clientNames.get(project.clientId) ?? 'No client')
-        : 'No client';
-
-      for (const i of income.filter((i) => i.projectId === project.id)) {
-        const currency = i.currency ?? 'USD';
-        const key = `${clientKey}:${currency}`;
-        const entry = groups.get(key) ?? {
-          clientId: project.clientId ?? null,
-          clientName,
-          currency,
-          total: 0,
-        };
-        entry.total += Number(i.amount);
-        groups.set(key, entry);
-      }
-    }
-
-    return [...groups.values()].sort((a, b) => b.total - a.total);
+    const projects = projectSnap.docs.map((d) => docToEntity<Project>(d));
+    const clients = clientSnap.docs.map((d) => docToEntity<Client>(d));
+    return calculateRevenueBreakdown(projects, clients, income);
   }
 }
 

@@ -1,12 +1,13 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { useOverdueIncome, useUpcomingRecurringExpenses } from '@/hooks/use-notifications';
+import { useNotifications } from '@/hooks/use-notifications';
 import { BellIcon } from './icons';
 import { NotificationList } from './notification-list';
 
 export function NotificationBell() {
-  const { data: overdueIncome } = useOverdueIncome();
-  const { data: upcomingRecurringExpenses } = useUpcomingRecurringExpenses();
+  const { data } = useNotifications();
+  const overdueIncome = data?.overdueIncome;
+  const upcomingRecurringExpenses = data?.upcomingRecurringExpenses;
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 

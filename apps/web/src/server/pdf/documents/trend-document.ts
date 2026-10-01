@@ -96,6 +96,7 @@ function buildChart(entries: MonthlyTrendEntry[]): ReactElement {
         x: PLOT_LEFT + i * groupWidth + groupWidth / 2,
         y: PLOT_BOTTOM + 12,
         textAnchor: 'middle' as const,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- react-pdf's Style type has no SVG fill
         style: { fontSize: 7, fill: THEME.inkMuted } as any,
       },
       // "2026-06" -> "26-06", compact enough for the axis at this chart width.
@@ -148,6 +149,7 @@ export function buildTrendDocument({
 }: {
   rows: MonthlyTrendEntry[];
   generatedAt: Date;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberate: DocumentProps is not exported
 }): ReactElement<any> {
   const groups = groupByCurrency(rows);
 
